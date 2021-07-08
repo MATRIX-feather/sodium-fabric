@@ -1,0 +1,839 @@
+From ef97156147a1cd8c48cdf2af00479182821685ba Mon Sep 17 00:00:00 2001
+From: Yao Chung Hu <30311066+FlashyReese@users.noreply.github.com>
+Date: Sun, 27 Jun 2021 16:51:49 -0600
+Subject: [PATCH] new: Add translation for Sodium's video settings screen
+
+Co-Authored-By: AMereBagatelle <56981737+AMereBagatelle@users.noreply.github.com>
+Co-authored-by: Bytzo <bytzo@bytzo.net>
+---
+ build.gradle                                  |   1 +
+ .../client/gui/SodiumGameOptionPages.java     | 135 ++++++++----------
+ .../sodium/client/gui/SodiumGameOptions.java  |  14 +-
+ .../sodium/client/gui/SodiumOptionsGUI.java   |  12 +-
+ .../sodium/client/gui/options/Option.java     |   2 +-
+ .../client/gui/options/OptionImpact.java      |  25 ++--
+ .../sodium/client/gui/options/OptionImpl.java |  19 ++-
+ .../sodium/client/gui/options/OptionPage.java |   7 +-
+ .../client/gui/options/TextProvider.java      |   4 +-
+ .../gui/options/control/ControlElement.java   |   3 +-
+ .../control/ControlValueFormatter.java        |  10 +-
+ .../gui/options/control/CyclingControl.java   |  18 +--
+ .../client/gui/widgets/AbstractWidget.java    |  10 ++
+ .../client/gui/widgets/FlatButtonWidget.java  |   5 +-
+ .../resources/assets/sodium/lang/en_US.lang   |   0
+ .../resources/assets/sodium/lang/en_us.json   |  51 +++++++
+ 16 files changed, 185 insertions(+), 131 deletions(-)
+ delete mode 100644 src/main/resources/assets/sodium/lang/en_US.lang
+ create mode 100644 src/main/resources/assets/sodium/lang/en_us.json
+
+diff --git a/build.gradle b/build.gradle
+index e41fc0b6e..9d93c9b20 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -32,6 +32,7 @@ dependencies {
+     modIncludeImplementation(fabricApi.module("fabric-api-base", project.fabric_version))
+     modIncludeImplementation(fabricApi.module("fabric-rendering-fluids-v1", project.fabric_version))
+     modIncludeImplementation(fabricApi.module("fabric-rendering-data-attachment-v1", project.fabric_version))
++    modIncludeImplementation(fabricApi.module("fabric-resource-loader-v0", project.fabric_version))
+ }
+ 
+ if (project.use_third_party_mods) {
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/SodiumGameOptionPages.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/SodiumGameOptionPages.java
+index 498ee0f1d..87a5645e3 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/SodiumGameOptionPages.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/SodiumGameOptionPages.java
+@@ -15,6 +15,8 @@
+ import net.minecraft.client.option.*;
+ import net.minecraft.client.option.Option;
+ import net.minecraft.client.util.Window;
++import net.minecraft.text.Text;
++import net.minecraft.text.TranslatableText;
+ 
+ import java.util.ArrayList;
+ import java.util.List;
+@@ -28,23 +30,22 @@ public static OptionPage general() {
+ 
+         groups.add(OptionGroup.createBuilder()
+                 .add(OptionImpl.createBuilder(int.class, vanillaOpts)
+-                        .setName("View Distance")
+-                        .setTooltip("The view distance controls how far away terrain will be rendered. Lower distances mean that less terrain will be " +
+-                                "rendered, improving frame rates.")
++                        .setName(new TranslatableText("options.renderDistance"))
++                        .setTooltip(new TranslatableText("sodium.options.view_distance.tooltip"))
+                         .setControl(option -> new SliderControl(option, 2, 32, 1, ControlValueFormatter.quantity("Chunks")))
+                         .setBinding((options, value) -> options.viewDistance = value, options -> options.viewDistance)
+                         .setImpact(OptionImpact.HIGH)
+                         .setFlags(OptionFlag.REQUIRES_RENDERER_RELOAD)
+                         .build())
+                 .add(OptionImpl.createBuilder(int.class, vanillaOpts)
+-                        .setName("Brightness")
+-                        .setTooltip("Controls the brightness (gamma) of the game.")
++                        .setName(new TranslatableText("options.gamma"))
++                        .setTooltip(new TranslatableText("sodium.options.brightness.tooltip"))
+                         .setControl(opt -> new SliderControl(opt, 0, 100, 1, ControlValueFormatter.brightness()))
+                         .setBinding((opts, value) -> opts.gamma = value * 0.01D, (opts) -> (int) (opts.gamma / 0.01D))
+                         .build())
+                 .add(OptionImpl.createBuilder(boolean.class, sodiumOpts)
+-                        .setName("Clouds")
+-                        .setTooltip("Controls whether or not clouds will be visible.")
++                        .setName(new TranslatableText("options.renderClouds"))
++                        .setTooltip(new TranslatableText("sodium.options.clouds.tooltip"))
+                         .setControl(TickBoxControl::new)
+                         .setBinding((opts, value) -> {
+                             opts.quality.enableClouds = value;
+@@ -62,9 +63,8 @@ public static OptionPage general() {
+ 
+         groups.add(OptionGroup.createBuilder()
+                 .add(OptionImpl.createBuilder(int.class, vanillaOpts)
+-                        .setName("GUI Scale")
+-                        .setTooltip("Sets the maximum scale factor to be used for the user interface. If 'auto' is used, then the largest scale factor " +
+-                                "will always be used.")
++                        .setName(new TranslatableText("options.guiScale"))
++                        .setTooltip(new TranslatableText("sodium.options.gui_scale.tooltip"))
+                         .setControl(option -> new SliderControl(option, 0, 4, 1, ControlValueFormatter.guiScale()))
+                         .setBinding((opts, value) -> {
+                             opts.guiScale = value;
+@@ -74,8 +74,8 @@ public static OptionPage general() {
+                         }, opts -> opts.guiScale)
+                         .build())
+                 .add(OptionImpl.createBuilder(boolean.class, vanillaOpts)
+-                        .setName("Fullscreen")
+-                        .setTooltip("If enabled, the game will display in full-screen (if supported).")
++                        .setName(new TranslatableText("options.fullscreen"))
++                        .setTooltip(new TranslatableText("sodium.options.fullscreen.tooltip"))
+                         .setControl(TickBoxControl::new)
+                         .setBinding((opts, value) -> {
+                             opts.fullscreen = value;
+@@ -92,18 +92,15 @@ public static OptionPage general() {
+                         }, (opts) -> opts.fullscreen)
+                         .build())
+                 .add(OptionImpl.createBuilder(boolean.class, vanillaOpts)
+-                        .setName("V-Sync")
+-                        .setTooltip("If enabled, the game's frame rate will be synchronized to the monitor's refresh rate, making for a generally smoother experience " +
+-                                "at the expense of overall input latency. This setting might reduce performance if your system is too slow.")
++                        .setName(new TranslatableText("options.vsync"))
++                        .setTooltip(new TranslatableText("sodium.options.v_sync.tooltip"))
+                         .setControl(TickBoxControl::new)
+                         .setBinding(new VanillaBooleanOptionBinding(Option.VSYNC))
+                         .setImpact(OptionImpact.VARIES)
+                         .build())
+                 .add(OptionImpl.createBuilder(int.class, vanillaOpts)
+-                        .setName("FPS Limit")
+-                        .setTooltip("Limits the maximum number of frames per second. In effect, this will throttle the game and can be useful when you want to conserve " +
+-                                "battery life or multi-task between other applications. If V-Sync is enabled, this option will be ignored unless it is lower than your " +
+-                                "display's refresh rate.")
++                        .setName(new TranslatableText("options.framerateLimit"))
++                        .setTooltip(new TranslatableText("sodium.options.fps_limit.tooltip"))
+                         .setControl(option -> new SliderControl(option, 5, 260, 5, ControlValueFormatter.fpsLimit()))
+                         .setBinding((opts, value) -> {
+                             opts.maxFps = value;
+@@ -114,20 +111,20 @@ public static OptionPage general() {
+ 
+         groups.add(OptionGroup.createBuilder()
+                 .add(OptionImpl.createBuilder(boolean.class, vanillaOpts)
+-                        .setName("View Bobbing")
+-                        .setTooltip("If enabled, the player's view will sway and bob when moving around. Players who suffer from motion sickness can benefit from disabling this.")
++                        .setName(new TranslatableText("options.viewBobbing"))
++                        .setTooltip(new TranslatableText("sodium.options.view_bobbing.tooltip"))
+                         .setControl(TickBoxControl::new)
+                         .setBinding(new VanillaBooleanOptionBinding(Option.VIEW_BOBBING))
+                         .build())
+                 .add(OptionImpl.createBuilder(AttackIndicator.class, vanillaOpts)
+-                        .setName("Attack Indicator")
+-                        .setTooltip("Controls where the Attack Indicator is displayed on screen.")
+-                        .setControl(opts -> new CyclingControl<>(opts, AttackIndicator.class, new String[] { "Off", "Crosshair", "Hotbar" }))
++                        .setName(new TranslatableText("options.attackIndicator"))
++                        .setTooltip(new TranslatableText("sodium.options.attack_indicator.tooltip"))
++                        .setControl(opts -> new CyclingControl<>(opts, AttackIndicator.class, new Text[] { new TranslatableText("options.off"), new TranslatableText("options.attack.crosshair"), new TranslatableText("options.attack.hotbar") }))
+                         .setBinding((opts, value) -> opts.attackIndicator = value, (opts) -> opts.attackIndicator)
+                         .build())
+                 .build());
+ 
+-        return new OptionPage("General", ImmutableList.copyOf(groups));
++        return new OptionPage(new TranslatableText("stat.generalButton"), ImmutableList.copyOf(groups));
+     }
+ 
+     enum SupportedGraphicsMode {
+@@ -155,10 +152,9 @@ public static OptionPage quality() {
+ 
+         groups.add(OptionGroup.createBuilder()
+                 .add(OptionImpl.createBuilder(SupportedGraphicsMode.class, vanillaOpts)
+-                        .setName("Graphics Quality")
+-                        .setTooltip("The default graphics quality controls some legacy options and is necessary for mod compatibility. If the options below are left to " +
+-                                "\"Default\", they will use this setting.")
+-                        .setControl(option -> new CyclingControl<>(option, SupportedGraphicsMode.class, new String[] { "Fast", "Fancy"/*, "Fabulous"*/ }))
++                        .setName(new TranslatableText("options.graphics"))
++                        .setTooltip(new TranslatableText("sodium.options.graphics_quality.tooltip"))
++                        .setControl(option -> new CyclingControl<>(option, SupportedGraphicsMode.class, new Text[] { new TranslatableText("options.graphics.fast"), new TranslatableText("options.graphics.fancy")/*, new TranslatableText("options.graphics.fabulous")*/ }))
+                         .setBinding(
+                                 (opts, value) -> opts.graphicsMode = value.toVanilla(),
+                                 opts -> SupportedGraphicsMode.fromVanilla(opts.graphicsMode))
+@@ -149,64 +145,60 @@ public static OptionPage quality() {
+ 
+         groups.add(OptionGroup.createBuilder()
+                 .add(OptionImpl.createBuilder(SodiumGameOptions.GraphicsQuality.class, sodiumOpts)
+-                        .setName("Clouds Quality")
+-                        .setTooltip("Controls the quality of rendered clouds in the sky.")
++                        .setName(new TranslatableText("sodium.options.clouds_quality.name"))
++                        .setTooltip(new TranslatableText("sodium.options.clouds_quality.tooltip"))
+                         .setControl(option -> new CyclingControl<>(option, SodiumGameOptions.GraphicsQuality.class))
+                         .setBinding((opts, value) -> opts.quality.cloudQuality = value, opts -> opts.quality.cloudQuality)
+                         .setImpact(OptionImpact.LOW)
+                         .build())
+                 .add(OptionImpl.createBuilder(SodiumGameOptions.GraphicsQuality.class, sodiumOpts)
+-                        .setName("Weather Quality")
+-                        .setTooltip("Controls the quality of rain and snow effects.")
++                        .setName(new TranslatableText("sodium.options.weather_quality.name"))
++                        .setTooltip(new TranslatableText("sodium.options.weather_quality.tooltip"))
+                         .setControl(option -> new CyclingControl<>(option, SodiumGameOptions.GraphicsQuality.class))
+                         .setBinding((opts, value) -> opts.quality.weatherQuality = value, opts -> opts.quality.weatherQuality)
+                         .setImpact(OptionImpact.MEDIUM)
+                         .build())
+                 .add(OptionImpl.createBuilder(ParticlesMode.class, vanillaOpts)
+-                        .setName("Particle Quality")
+-                        .setTooltip("Controls the maximum number of particles which can be present on screen at any one time.")
+-                        .setControl(opt -> new CyclingControl<>(opt, ParticlesMode.class, new String[] { "High", "Medium", "Low" }))
++                        .setName(new TranslatableText("sodium.options.particle_quality.name"))
++                        .setTooltip(new TranslatableText("sodium.options.particle_quality.tooltip"))
++                        .setControl(opt -> new CyclingControl<>(opt, ParticlesMode.class, new Text[] { new TranslatableText("options.particles.all"), new TranslatableText("options.particles.decreased"), new TranslatableText("options.particles.minimal") }))
+                         .setBinding((opts, value) -> opts.particles = value, (opts) -> opts.particles)
+                         .setImpact(OptionImpact.MEDIUM)
+                         .build())
+                 .add(OptionImpl.createBuilder(boolean.class, vanillaOpts)
+-                        .setName("Smooth Lighting")
+-                        .setTooltip("Controls whether blocks will be smoothly lit and shaded. This slightly increases the amount " +
+-                                "of time needed to re-build a chunk, but doesn't affect frame rates.")
++                        .setName(new TranslatableText("options.ao"))
++                        .setTooltip(new TranslatableText("sodium.options.smooth_lighting.tooltip"))
+                         .setControl(TickBoxControl::new)
+                         .setBinding((opts, value) -> opts.ao = value ? AoMode.MAX : AoMode.OFF, opts -> opts.ao == AoMode.MAX)
+                         .setImpact(OptionImpact.LOW)
+                         .setFlags(OptionFlag.REQUIRES_RENDERER_RELOAD)
+                         .build())
+                 .add(OptionImpl.createBuilder(int.class, vanillaOpts)
+-                        .setName("Biome Blend")
+-                        .setTooltip("Controls the range which biomes will be sampled for block colorization. " +
+-                                "Higher values greatly increase the amount of time it takes to build chunks for diminishing improvements in quality.")
++                        .setName(new TranslatableText("options.biomeBlendRadius"))
++                        .setTooltip(new TranslatableText("sodium.options.biome_blend.tooltip"))
+                         .setControl(option -> new SliderControl(option, 0, 7, 1, ControlValueFormatter.quantityOrDisabled("block(s)", "None")))
+                         .setBinding((opts, value) -> opts.biomeBlendRadius = value, opts -> opts.biomeBlendRadius)
+                         .setImpact(OptionImpact.LOW)
+                         .setFlags(OptionFlag.REQUIRES_RENDERER_RELOAD)
+                         .build())
+                 .add(OptionImpl.createBuilder(int.class, vanillaOpts)
+-                        .setName("Entity Distance")
+-                        .setTooltip("Controls how far away entities can render from the player. Higher values increase the render distance at the expense " +
+-                                "of frame rates.")
++                        .setName(new TranslatableText("options.entityDistanceScaling"))
++                        .setTooltip(new TranslatableText("sodium.options.entity_distance.tooltip"))
+                         .setControl(option -> new SliderControl(option, 50, 500, 25, ControlValueFormatter.percentage()))
+                         .setBinding((opts, value) -> opts.entityDistanceScaling = value / 100.0F, opts -> Math.round(opts.entityDistanceScaling * 100.0F))
+                         .setImpact(OptionImpact.MEDIUM)
+                         .build()
+                 )
+                 .add(OptionImpl.createBuilder(boolean.class, vanillaOpts)
+-                        .setName("Entity Shadows")
+-                        .setTooltip("If enabled, basic shadows will be rendered beneath mobs and other entities.")
++                        .setName(new TranslatableText("options.entityShadows"))
++                        .setTooltip(new TranslatableText("sodium.options.entity_shadows.tooltip"))
+                         .setControl(TickBoxControl::new)
+                         .setBinding((opts, value) -> opts.entityShadows = value, opts -> opts.entityShadows)
+                         .setImpact(OptionImpact.LOW)
+                         .build())
+                 .add(OptionImpl.createBuilder(boolean.class, sodiumOpts)
+-                        .setName("Vignette")
+-                        .setTooltip("If enabled, a vignette effect will be rendered on the player's view. This is very unlikely to make a difference " +
+-                                "to frame rates unless you are fill-rate limited.")
++                        .setName(new TranslatableText("sodium.options.vignette.name"))
++                        .setTooltip(new TranslatableText("sodium.options.vignette.tooltip"))
+                         .setControl(TickBoxControl::new)
+                         .setBinding((opts, value) -> opts.quality.enableVignette = value, opts -> opts.quality.enableVignette)
+                         .setImpact(OptionImpact.LOW)
+@@ -216,9 +208,8 @@ public static OptionPage quality() {
+ 
+         groups.add(OptionGroup.createBuilder()
+                 .add(OptionImpl.createBuilder(int.class, vanillaOpts)
+-                        .setName("Mipmap Levels")
+-                        .setTooltip("Controls the number of mipmaps which will be used for block model textures. Higher values provide better rendering of blocks " +
+-                                "in the distance, but may adversely affect performance with many animated textures.")
++                        .setName(new TranslatableText("options.mipmapLevels"))
++                        .setTooltip(new TranslatableText("sodium.options.mipmap_levels.tooltip"))
+                         .setControl(option -> new SliderControl(option, 0, 4, 1, ControlValueFormatter.multiplier()))
+                         .setBinding((opts, value) -> opts.mipmapLevels = value, opts -> opts.mipmapLevels)
+                         .setImpact(OptionImpact.MEDIUM)
+@@ -227,7 +218,7 @@ public static OptionPage quality() {
+                 .build());
+ 
+ 
+-        return new OptionPage("Quality", ImmutableList.copyOf(groups));
++        return new OptionPage(new TranslatableText("sodium.options.pages.quality"), ImmutableList.copyOf(groups));
+     }
+ 
+     public static OptionPage advanced() {
+@@ -235,10 +226,8 @@ public static OptionPage advanced() {
+ 
+         groups.add(OptionGroup.createBuilder()
+                 .add(OptionImpl.createBuilder(boolean.class, sodiumOpts)
+-                        .setName("Use Block Face Culling")
+-                        .setTooltip("If enabled, only the sides of blocks which are facing the camera will be submitted for rendering. This can eliminate " +
+-                                "a large number of block faces very early in the rendering process, saving memory bandwidth and time on the GPU. Some resource " +
+-                                "packs may have issues with this option, so try disabling it if you're seeing holes in blocks.")
++                        .setName(new TranslatableText("sodium.options.use_block_face_culling.name"))
++                        .setTooltip(new TranslatableText("sodium.options.use_block_face_culling.tooltip"))
+                         .setControl(TickBoxControl::new)
+                         .setImpact(OptionImpact.MEDIUM)
+                         .setBinding((opts, value) -> opts.advanced.useBlockFaceCulling = value, opts -> opts.advanced.useBlockFaceCulling)
+@@ -246,10 +235,8 @@ public static OptionPage advanced() {
+                         .build()
+                 )
+                 .add(OptionImpl.createBuilder(boolean.class, sodiumOpts)
+-                        .setName("Use Fog Occlusion")
+-                        .setTooltip("If enabled, chunks which are determined to be fully hidden by fog effects will not be rendered, helping to improve performance. The " +
+-                                "improvement can be more dramatic when fog effects are heavier (such as while underwater), but it may cause undesirable visual artifacts " +
+-                                "between the sky and fog in some scenarios.")
++                        .setName(new TranslatableText("sodium.options.use_fog_occlusion.name"))
++                        .setTooltip(new TranslatableText("sodium.options.use_fog_occlusion.tooltip"))
+                         .setControl(TickBoxControl::new)
+                         .setBinding((opts, value) -> opts.advanced.useFogOcclusion = value, opts -> opts.advanced.useFogOcclusion)
+                         .setImpact(OptionImpact.MEDIUM)
+@@ -257,28 +244,24 @@ public static OptionPage advanced() {
+                         .build()
+                 )
+                 .add(OptionImpl.createBuilder(boolean.class, sodiumOpts)
+-                        .setName("Use Entity Culling")
+-                        .setTooltip("If enabled, entities determined not to be in any visible chunks will be skipped during rendering. This can help improve performance " +
+-                                "by avoiding the rendering of entities located underground or behind walls.")
++                        .setName(new TranslatableText("sodium.options.use_entity_culling.name"))
++                        .setTooltip(new TranslatableText("sodium.options.use_entity_culling.tooltip"))
+                         .setControl(TickBoxControl::new)
+                         .setImpact(OptionImpact.MEDIUM)
+                         .setBinding((opts, value) -> opts.advanced.useEntityCulling = value, opts -> opts.advanced.useEntityCulling)
+                         .build()
+                 )
+                 .add(OptionImpl.createBuilder(boolean.class, sodiumOpts)
+-                        .setName("Use Particle Culling")
+-                        .setTooltip("If enabled, only particles which are determined to be visible will be rendered. This can provide a significant improvement " +
+-                                "to frame rates when many particles are nearby.")
++                        .setName(new TranslatableText("sodium.options.use_particle_culling.name"))
++                        .setTooltip(new TranslatableText("sodium.options.use_particle_culling.tooltip"))
+                         .setControl(TickBoxControl::new)
+                         .setImpact(OptionImpact.MEDIUM)
+                         .setBinding((opts, value) -> opts.advanced.useParticleCulling = value, opts -> opts.advanced.useParticleCulling)
+                         .build()
+                 )
+                 .add(OptionImpl.createBuilder(boolean.class, sodiumOpts)
+-                        .setName("Animate Only Visible Textures")
+-                        .setTooltip("If enabled, only animated textures determined to be visible will be updated. This can provide a significant boost to frame " +
+-                                "rates on some hardware, especially with heavier resource packs. If you experience issues with some textures not being animated, " +
+-                                "try disabling this option.")
++                        .setName(new TranslatableText("sodium.options.animate_only_visible_textures.name"))
++                        .setTooltip(new TranslatableText("sodium.options.animate_only_visible_textures.tooltip"))
+                         .setControl(TickBoxControl::new)
+                         .setImpact(OptionImpact.HIGH)
+                         .setBinding((opts, value) -> opts.advanced.animateOnlyVisibleTextures = value, opts -> opts.advanced.animateOnlyVisibleTextures)
+@@ -288,10 +271,8 @@ public static OptionPage advanced() {
+ 
+         groups.add(OptionGroup.createBuilder()
+                 .add(OptionImpl.createBuilder(boolean.class, sodiumOpts)
+-                        .setName("Allow Direct Memory Access")
+-                        .setTooltip("If enabled, some critical code paths will be allowed to use direct memory access for performance. This " +
+-                                "often greatly reduces CPU overhead for chunk and entity rendering, but can make it harder to diagnose some " +
+-                                "bugs and crashes. You should only disable this if you've been asked to or otherwise know what you're doing.")
++                        .setName(new TranslatableText("sodium.options.allow_direct_memory_access.name"))
++                        .setTooltip(new TranslatableText("sodium.options.allow_direct_memory_access.tooltip"))
+                         .setControl(TickBoxControl::new)
+                         .setImpact(OptionImpact.HIGH)
+                         .setFlags(OptionFlag.REQUIRES_RENDERER_RELOAD)
+@@ -301,6 +282,6 @@ public static OptionPage advanced() {
+                 )
+                 .build());
+ 
+-        return new OptionPage("Advanced", ImmutableList.copyOf(groups));
++        return new OptionPage(new TranslatableText("sodium.options.pages.advanced"), ImmutableList.copyOf(groups));
+     }
+ }
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/SodiumGameOptions.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/SodiumGameOptions.java
+index 62fcbdd1e..5a2166a9a 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/SodiumGameOptions.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/SodiumGameOptions.java
+@@ -6,6 +6,8 @@
+ import me.jellysquid.mods.sodium.client.SodiumClientMod;
+ import me.jellysquid.mods.sodium.client.gui.options.TextProvider;
+ import net.minecraft.client.option.GraphicsMode;
++import net.minecraft.text.Text;
++import net.minecraft.text.TranslatableText;
+ 
+ import java.io.FileReader;
+ import java.io.IOException;
+@@ -47,18 +49,18 @@ public void notifyListeners() {
+     }
+ 
+     public enum GraphicsQuality implements TextProvider {
+-        DEFAULT("Default"),
+-        FANCY("Fancy"),
+-        FAST("Fast");
++        DEFAULT("generator.default"),
++        FANCY("options.clouds.fancy"),
++        FAST("options.clouds.fast");
+ 
+-        private final String name;
++        private final Text name;
+ 
+         GraphicsQuality(String name) {
+-            this.name = name;
++            this.name = new TranslatableText(name);
+         }
+ 
+         @Override
+-        public String getLocalizedName() {
++        public Text getLocalizedName() {
+             return this.name;
+         }
+ 
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/SodiumOptionsGUI.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/SodiumOptionsGUI.java
+index e575e2ce6..4a1f35fd3 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/SodiumOptionsGUI.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/SodiumOptionsGUI.java
+@@ -81,11 +81,11 @@ private void rebuildGUI() {
+         this.rebuildGUIPages();
+         this.rebuildGUIOptions();
+ 
+-        this.undoButton = new FlatButtonWidget(new Dim2i(this.width - 211, this.height - 26, 65, 20), "Undo", this::undoChanges);
+-        this.applyButton = new FlatButtonWidget(new Dim2i(this.width - 142, this.height - 26, 65, 20), "Apply", this::applyChanges);
+-        this.closeButton = new FlatButtonWidget(new Dim2i(this.width - 73, this.height - 26, 65, 20), "Close", this::onClose);
+-        this.donateButton = new FlatButtonWidget(new Dim2i(this.width - 128, 6, 100, 20), "Buy us a coffee!", this::openDonationPage);
+-        this.hideDonateButton = new FlatButtonWidget(new Dim2i(this.width - 26, 6, 20, 20), "x", this::hideDonationButton);
++        this.undoButton = new FlatButtonWidget(new Dim2i(this.width - 211, this.height - 30, 65, 20), new TranslatableText("sodium.options.buttons.undo"), this::undoChanges);
++        this.applyButton = new FlatButtonWidget(new Dim2i(this.width - 142, this.height - 30, 65, 20), new TranslatableText("sodium.options.buttons.apply"), this::applyChanges);
++        this.closeButton = new FlatButtonWidget(new Dim2i(this.width - 73, this.height - 30, 65, 20), new TranslatableText("sodium.options.buttons.close"), this::onClose);
++        this.donateButton = new FlatButtonWidget(new Dim2i(this.width - 128, 6, 100, 20), new TranslatableText("sodium.options.buttons.donate"), this::openDonationPage);
++        this.hideDonateButton = new FlatButtonWidget(new Dim2i(this.width - 26, 6, 20, 20), new LiteralText("x"), this::hideDonationButton);
+ 
+         if (SodiumClientMod.options().notifications.hideDonationButton) {
+             this.setDonationButtonVisibility(false);
+@@ -219,7 +219,7 @@ private void renderOptionTooltip(MatrixStack matrixStack, ControlElement<?> elem
+         OptionImpact impact = option.getImpact();
+ 
+         if (impact != null) {
+-            tooltip.add(Language.getInstance().reorder(new LiteralText(Formatting.GRAY + "Performance Impact: " + impact.toDisplayString())));
++            tooltip.add(Language.getInstance().reorder(new TranslatableText("sodium.options.performance_impact_string", impact.getLocalizedName()).formatted(Formatting.GRAY)));
+         }
+ 
+         int boxHeight = (tooltip.size() * 12) + boxPadding;
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/Option.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/Option.java
+index 7d698b228..1a0118f8e 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/Option.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/Option.java
+@@ -7,7 +7,7 @@
+ import java.util.Collection;
+ 
+ public interface Option<T> {
+-    String getName();
++    Text getName();
+ 
+     Text getTooltip();
+ 
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionImpact.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionImpact.java
+index c21487426..a58df2de4 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionImpact.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionImpact.java
+@@ -1,22 +1,23 @@
+ package me.jellysquid.mods.sodium.client.gui.options;
+ 
++import net.minecraft.text.Text;
++import net.minecraft.text.TranslatableText;
+ import net.minecraft.util.Formatting;
+ 
+-public enum OptionImpact {
+-    LOW(Formatting.GREEN, "Low"),
+-    MEDIUM(Formatting.YELLOW, "Medium"),
+-    HIGH(Formatting.GOLD, "High"),
+-    VARIES(Formatting.WHITE, "Varies");
++public enum OptionImpact implements TextProvider {
++    LOW(Formatting.GREEN, "sodium.option_impact.low"),
++    MEDIUM(Formatting.YELLOW, "sodium.option_impact.medium"),
++    HIGH(Formatting.GOLD, "sodium.option_impact.high"),
++    VARIES(Formatting.WHITE, "sodium.option_impact.varies");
+ 
+-    private final Formatting color;
+-    private final String text;
++    private final Text text;
+ 
+     OptionImpact(Formatting color, String text) {
+-        this.color = color;
+-        this.text = text;
++        this.text = new TranslatableText(text).formatted(color);
+     }
+ 
+-    public String toDisplayString() {
+-        return this.color + this.text;
++    @Override
++    public Text getLocalizedName() {
++        return this.text;
+     }
+ }
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionImpl.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionImpl.java
+index c7d93a9a0..72905ddeb 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionImpl.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionImpl.java
+@@ -4,7 +4,6 @@
+ import me.jellysquid.mods.sodium.client.gui.options.binding.OptionBinding;
+ import me.jellysquid.mods.sodium.client.gui.options.control.Control;
+ import me.jellysquid.mods.sodium.client.gui.options.storage.OptionStorage;
+-import net.minecraft.text.LiteralText;
+ import net.minecraft.text.Text;
+ import org.apache.commons.lang3.Validate;
+ 
+@@ -22,7 +21,7 @@
+ 
+     private final EnumSet<OptionFlag> flags;
+ 
+-    private final String name;
++    private final Text name;
+     private final Text tooltip;
+ 
+     private final OptionImpact impact;
+@@ -33,8 +32,8 @@
+     private final boolean enabled;
+ 
+     private OptionImpl(OptionStorage<S> storage,
+-                       String name,
+-                       String tooltip,
++                       Text name,
++                       Text tooltip,
+                        OptionBinding<S, T> binding,
+                        Function<OptionImpl<S, T>, Control<T>> control,
+                        EnumSet<OptionFlag> flags,
+@@ -42,7 +41,7 @@ private OptionImpl(OptionStorage<S> storage,
+                        boolean enabled) {
+         this.storage = storage;
+         this.name = name;
+-        this.tooltip = new LiteralText(tooltip);
++        this.tooltip = tooltip;
+         this.binding = binding;
+         this.impact = impact;
+         this.flags = flags;
+@@ -53,7 +52,7 @@ private OptionImpl(OptionStorage<S> storage,
+     }
+ 
+     @Override
+-    public String getName() {
++    public Text getName() {
+         return this.name;
+     }
+ 
+@@ -120,8 +119,8 @@ public void applyChanges() {
+ 
+     public static class Builder<S, T> {
+         private final OptionStorage<S> storage;
+-        private String name;
+-        private String tooltip;
++        private Text name;
++        private Text tooltip;
+         private OptionBinding<S, T> binding;
+         private Function<OptionImpl<S, T>, Control<T>> control;
+         private OptionImpact impact;
+@@ -132,7 +131,7 @@ private Builder(OptionStorage<S> storage) {
+             this.storage = storage;
+         }
+ 
+-        public Builder<S, T> setName(String name) {
++        public Builder<S, T> setName(Text name) {
+             Validate.notNull(name, "Argument must not be null");
+ 
+             this.name = name;
+@@ -140,7 +139,7 @@ private Builder(OptionStorage<S> storage) {
+             return this;
+         }
+ 
+-        public Builder<S, T> setTooltip(String tooltip) {
++        public Builder<S, T> setTooltip(Text tooltip) {
+             Validate.notNull(tooltip, "Argument must not be null");
+ 
+             this.tooltip = tooltip;
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionPage.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionPage.java
+index a02254c90..2aa185e35 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionPage.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionPage.java
+@@ -1,13 +1,14 @@
+ package me.jellysquid.mods.sodium.client.gui.options;
+ 
+ import com.google.common.collect.ImmutableList;
++import net.minecraft.text.Text;
+ 
+ public class OptionPage {
+-    private final String name;
++    private final Text name;
+     private final ImmutableList<OptionGroup> groups;
+     private final ImmutableList<Option<?>> options;
+ 
+-    public OptionPage(String name, ImmutableList<OptionGroup> groups) {
++    public OptionPage(Text name, ImmutableList<OptionGroup> groups) {
+         this.name = name;
+         this.groups = groups;
+ 
+@@ -28,7 +29,7 @@ public OptionPage(String name, ImmutableList<OptionGroup> groups) {
+         return this.options;
+     }
+ 
+-    public String getName() {
++    public Text getName() {
+         return this.name;
+     }
+ 
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/TextProvider.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/TextProvider.java
+index a7ace2ef5..adb85defc 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/TextProvider.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/TextProvider.java
+@@ -1,5 +1,7 @@
+ package me.jellysquid.mods.sodium.client.gui.options;
+ 
++import net.minecraft.text.Text;
++
+ public interface TextProvider {
+-    String getLocalizedName();
++    Text getLocalizedName();
+ }
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/control/ControlElement.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/control/ControlElement.java
+index 695243320..8832cc3ac 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/control/ControlElement.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/control/ControlElement.java
+@@ -4,6 +4,7 @@
+ import me.jellysquid.mods.sodium.client.gui.widgets.AbstractWidget;
+ import me.jellysquid.mods.sodium.client.util.Dim2i;
+ import net.minecraft.client.util.math.MatrixStack;
++import net.minecraft.text.Text;
+ import net.minecraft.util.Formatting;
+ 
+ public class ControlElement<T> extends AbstractWidget {
+@@ -24,7 +25,7 @@ public boolean isHovered() {
+ 
+     @Override
+     public void render(MatrixStack matrixStack, int mouseX, int mouseY, float delta) {
+-        String name = this.option.getName();
++        String name = this.option.getName().getString();
+         String label;
+ 
+         if (this.hovered && this.font.getWidth(name) > (this.dim.width() - this.option.getControl().getMaxWidth())) {
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/control/ControlValueFormatter.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/control/ControlValueFormatter.java
+index 64a82b8d0..db0ed30de 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/control/ControlValueFormatter.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/control/ControlValueFormatter.java
+@@ -1,20 +1,22 @@
+ package me.jellysquid.mods.sodium.client.gui.options.control;
+ 
++import net.minecraft.text.TranslatableText;
++
+ public interface ControlValueFormatter {
+     static ControlValueFormatter guiScale() {
+-        return (v) -> (v == 0) ? "Auto" : v + "x";
++        return (v) -> (v == 0) ? new TranslatableText("options.guiScale.auto").getString() : v + "x";
+     }
+ 
+     static ControlValueFormatter fpsLimit() {
+-        return (v) -> (v == 260) ? "Unlimited" : v + " FPS";
++        return (v) -> (v == 260) ? new TranslatableText("options.framerateLimit.max").getString() : v + " FPS";
+     }
+ 
+     static ControlValueFormatter brightness() {
+         return (v) -> {
+             if (v == 0) {
+-                return "Moody";
++                return new TranslatableText("options.gamma.min").getString();
+             } else if (v == 100) {
+-                return "Bright";
++                return new TranslatableText("options.gamma.max").getString();
+             } else {
+                 return v + "%";
+             }
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/control/CyclingControl.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/control/CyclingControl.java
+index 72edfc4c2..538b73679 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/control/CyclingControl.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/control/CyclingControl.java
+@@ -4,18 +4,20 @@
+ import me.jellysquid.mods.sodium.client.gui.options.TextProvider;
+ import me.jellysquid.mods.sodium.client.util.Dim2i;
+ import net.minecraft.client.util.math.MatrixStack;
++import net.minecraft.text.LiteralText;
++import net.minecraft.text.Text;
+ import org.apache.commons.lang3.Validate;
+ 
+ public class CyclingControl<T extends Enum<T>> implements Control<T> {
+     private final Option<T> option;
+     private final T[] allowedValues;
+-    private final String[] names;
++    private final Text[] names;
+ 
+     public CyclingControl(Option<T> option, Class<T> enumType) {
+         this(option, enumType, enumType.getEnumConstants());
+     }
+ 
+-    public CyclingControl(Option<T> option, Class<T> enumType, String[] names) {
++    public CyclingControl(Option<T> option, Class<T> enumType, Text[] names) {
+         T[] universe = enumType.getEnumConstants();
+ 
+         Validate.isTrue(universe.length == names.length, "Mismatch between universe length and names array length");
+@@ -31,16 +33,16 @@ public CyclingControl(Option<T> option, Class<T> enumType, T[] allowedValues) {
+ 
+         this.option = option;
+         this.allowedValues = allowedValues;
+-        this.names = new String[universe.length];
++        this.names = new Text[universe.length];
+ 
+         for (int i = 0; i < this.names.length; i++) {
+-            String name;
++            Text name;
+             T value = universe[i];
+ 
+             if (value instanceof TextProvider) {
+                 name = ((TextProvider) value).getLocalizedName();
+             } else {
+-                name = value.name();
++                name = new LiteralText(value.name());
+             }
+ 
+             this.names[i] = name;
+@@ -64,10 +66,10 @@ public int getMaxWidth() {
+ 
+     private static class CyclingControlElement<T extends Enum<T>> extends ControlElement<T> {
+         private final T[] allowedValues;
+-        private final String[] names;
++        private final Text[] names;
+         private int currentIndex;
+ 
+-        public CyclingControlElement(Option<T> option, Dim2i dim, T[] allowedValues, String[] names) {
++        public CyclingControlElement(Option<T> option, Dim2i dim, T[] allowedValues, Text[] names) {
+             super(option, dim);
+ 
+             this.allowedValues = allowedValues;
+@@ -87,7 +89,7 @@ public void render(MatrixStack matrixStack, int mouseX, int mouseY, float delta)
+             super.render(matrixStack, mouseX, mouseY, delta);
+ 
+             Enum<T> value = this.option.getValue();
+-            String name = this.names[value.ordinal()];
++            Text name = this.names[value.ordinal()];
+ 
+             int strWidth = this.getStringWidth(name);
+             this.drawString(matrixStack, name, this.dim.getLimitX() - strWidth - 6, this.dim.getCenterY() - 4, 0xFFFFFFFF);
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/AbstractWidget.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/AbstractWidget.java
+index 70e77056e..f9830a192 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/AbstractWidget.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/AbstractWidget.java
+@@ -11,6 +11,8 @@
+ import net.minecraft.client.sound.PositionedSoundInstance;
+ import net.minecraft.client.util.math.MatrixStack;
+ import net.minecraft.sound.SoundEvents;
++import net.minecraft.text.StringVisitable;
++import net.minecraft.text.Text;
+ 
+ import java.util.function.Consumer;
+ 
+@@ -25,6 +27,10 @@ protected void drawString(MatrixStack matrixStack, String str, int x, int y, int
+         this.font.draw(matrixStack, str, x, y, color);
+     }
+ 
++    protected void drawString(MatrixStack matrixStack, Text text, int x, int y, int color) {
++        this.font.draw(matrixStack, text, x, y, color);
++    }
++
+     protected void drawRect(double x1, double y1, double x2, double y2, int color) {
+         float a = (float) (color >> 24 & 255) / 255.0F;
+         float r = (float) (color >> 16 & 255) / 255.0F;
+@@ -69,6 +75,10 @@ protected int getStringWidth(String text) {
+         return this.font.getWidth(text);
+     }
+ 
++    protected int getStringWidth(StringVisitable text) {
++        return this.font.getWidth(text);
++    }
++
+     public Selectable.SelectionType getType() {
+         // FIXME
+         return SelectionType.NONE;
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/FlatButtonWidget.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/FlatButtonWidget.java
+index b41fc589b..1e8963dbc 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/FlatButtonWidget.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/FlatButtonWidget.java
+@@ -3,17 +3,18 @@
+ import me.jellysquid.mods.sodium.client.util.Dim2i;
+ import net.minecraft.client.gui.Drawable;
+ import net.minecraft.client.util.math.MatrixStack;
++import net.minecraft.text.Text;
+ 
+ public class FlatButtonWidget extends AbstractWidget implements Drawable {
+     private final Dim2i dim;
+-    private final String label;
++    private final Text label;
+     private final Runnable action;
+ 
+     private boolean selected;
+     private boolean enabled = true;
+     private boolean visible = true;
+ 
+-    public FlatButtonWidget(Dim2i dim, String label, Runnable action) {
++    public FlatButtonWidget(Dim2i dim, Text label, Runnable action) {
+         this.dim = dim;
+         this.label = label;
+         this.action = action;
+diff --git a/src/main/resources/assets/sodium/lang/en_US.lang b/src/main/resources/assets/sodium/lang/en_US.lang
+deleted file mode 100644
+index e69de29bb..000000000
+diff --git a/src/main/resources/assets/sodium/lang/en_us.json b/src/main/resources/assets/sodium/lang/en_us.json
+new file mode 100644
+index 000000000..c48683c44
+--- /dev/null
++++ b/src/main/resources/assets/sodium/lang/en_us.json
+@@ -0,0 +1,51 @@
++{
++  "sodium.option_impact.low": "Low",
++  "sodium.option_impact.medium": "Medium",
++  "sodium.option_impact.high": "High",
++  "sodium.option_impact.extreme": "Extreme",
++  "sodium.option_impact.varies": "Varies",
++  "sodium.options.pages.general": "General",
++  "sodium.options.pages.quality": "Quality",
++  "sodium.options.pages.advanced": "Advanced",
++  "sodium.options.view_distance.tooltip": "The render distance controls how far away terrain will be rendered. Lower distances mean that less terrain will be rendered, improving frame rates.",
++  "sodium.options.brightness.tooltip": "Controls the brightness (gamma) of the game.",
++  "sodium.options.clouds.tooltip": "Controls whether or not clouds will be visible.",
++  "sodium.options.gui_scale.tooltip": "Sets the maximum scale factor to be used for the user interface. If 'auto' is used, then the largest scale factor will always be used.",
++  "sodium.options.fullscreen.tooltip": "If enabled, the game will display in full-screen (if supported).",
++  "sodium.options.v_sync.name": "V-Sync",
++  "sodium.options.v_sync.tooltip": "If enabled, the game's frame rate will be synchronized to the monitor's refresh rate, making for a generally smoother experience at the expense of overall input latency. This setting might reduce performance if your system is too slow.",
++  "sodium.options.fps_limit.tooltip": "Limits the maximum number of frames per second. In effect, this will throttle the game and can be useful when you want to conserve battery life or multi-task between other applications. If V-Sync is enabled, this option will be ignored unless it is lower than your display's refresh rate.",
++  "sodium.options.view_bobbing.tooltip": "If enabled, the player's view will sway and bob when moving around. Players who suffer from motion sickness can benefit from disabling this.",
++  "sodium.options.attack_indicator.tooltip": "Controls where the Attack Indicator is displayed on screen.",
++  "sodium.options.graphics_quality.tooltip": "The default graphics quality controls some legacy options and is necessary for mod compatibility. If the options below are left to \"Default\", they will use this setting.",
++  "sodium.options.clouds_quality.name": "Clouds Quality",
++  "sodium.options.clouds_quality.tooltip": "Controls the quality of rendered clouds in the sky.",
++  "sodium.options.weather_quality.name": "Weather Quality",
++  "sodium.options.weather_quality.tooltip": "Controls the quality of rain and snow effects.",
++  "sodium.options.particle_quality.name": "Particle Quality",
++  "sodium.options.particle_quality.tooltip": "Controls the maximum number of particles which can be present on screen at any one time.",
++  "sodium.options.smooth_lighting.tooltip": "Controls whether blocks will be smoothly lit and shaded. This slightly increases the amount of time needed to re-build a chunk, but doesn't affect frame rates.",
++  "sodium.options.biome_blend.tooltip": "Controls the range which biomes will be sampled for block colorization. Higher values greatly increase the amount of time it takes to build chunks for diminishing improvements in quality.",
++  "sodium.options.entity_distance.tooltip": "Controls how far away entities can render from the player. Higher values increase the render distance at the expense of frame rates.",
++  "sodium.options.entity_shadows.tooltip": "If enabled, basic shadows will be rendered beneath mobs and other entities.",
++  "sodium.options.vignette.name": "Vignette",
++  "sodium.options.vignette.tooltip": "If enabled, a vignette effect will be rendered on the player's view. This is very unlikely to make a difference to frame rates unless you are fill-rate limited.",
++  "sodium.options.mipmap_levels.tooltip": "Controls the number of mipmaps which will be used for block model textures. Higher values provide better rendering of blocks in the distance, but may adversely affect performance with many animated textures.",
++  "sodium.options.use_block_face_culling.name": "Use Block Face Culling",
++  "sodium.options.use_block_face_culling.tooltip": "If enabled, only the sides of blocks which are facing the camera will be submitted for rendering. This can eliminate a large number of block faces very early in the rendering process, saving memory bandwidth and time on the GPU. Some resource packs may have issues with this option, so try disabling it if you're seeing holes in blocks.",
++  "sodium.options.use_fog_occlusion.name": "Use Fog Occlusion",
++  "sodium.options.use_fog_occlusion.tooltip": "If enabled, chunks which are determined to be fully hidden by fog effects will not be rendered, helping to improve performance. The improvement can be more dramatic when fog effects are heavier (such as while underwater), but it may cause undesirable visual artifacts between the sky and fog in some scenarios.",
++  "sodium.options.use_entity_culling.name": "Use Entity Culling",
++  "sodium.options.use_entity_culling.tooltip": "If enabled, entities determined not to be in any visible chunks will be skipped during rendering. This can help improve performance by avoiding the rendering of entities located underground or behind walls.",
++  "sodium.options.use_particle_culling.name": "Use Particle Culling",
++  "sodium.options.use_particle_culling.tooltip": "If enabled, only particles which are determined to be visible will be rendered. This can provide a significant improvement to frame rates when many particles are nearby.",
++  "sodium.options.animate_only_visible_textures.name": "Animate Only Visible Textures",
++  "sodium.options.animate_only_visible_textures.tooltip": "If enabled, only animated textures determined to be visible will be updated. This can provide a significant boost to frame rates on some hardware, especially with heavier resource packs. If you experience issues with some textures not being animated, try disabling this option.",
++  "sodium.options.allow_direct_memory_access.name": "Allow Direct Memory Access",
++  "sodium.options.allow_direct_memory_access.tooltip": "If enabled, some critical code paths will be allowed to use direct memory access for performance. This often greatly reduces CPU overhead for chunk and entity rendering, but can make it harder to diagnose some bugs and crashes. You should only disable this if you've been asked to or otherwise know what you're doing.",
++  "sodium.options.performance_impact_string": "Performance Impact: %s",
++  "sodium.options.buttons.undo": "Undo",
++  "sodium.options.buttons.apply": "Apply",
++  "sodium.options.buttons.close": "Close",
++  "sodium.options.buttons.donate": "Buy us a coffee!"
++}
+\ No newline at end of file

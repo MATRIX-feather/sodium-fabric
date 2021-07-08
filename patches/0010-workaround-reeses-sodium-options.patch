@@ -1,0 +1,43 @@
+From e496c30852daedbf743ae343c999f7440c12b1f3 Mon Sep 17 00:00:00 2001
+From: MATRIX-feather <midnightcarnival@outlook.com>
+Date: Wed, 7 Jul 2021 19:04:54 +0800
+Subject: [PATCH] =?UTF-8?q?workaround:=20=E4=B8=8Ereeses-sodium-options?=
+ =?UTF-8?q?=E5=86=B2=E7=AA=81?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .../mods/sodium/client/util/Dim2i.java           | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/util/Dim2i.java b/src/main/java/me/jellysquid/mods/sodium/client/util/Dim2i.java
+index 3ef2af1..02492f4 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/util/Dim2i.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/util/Dim2i.java
+@@ -13,6 +13,22 @@ public record Dim2i(int x, int y, int width, int height) {
+         return x >= this.x && x < this.getLimitX() && y >= this.y && y < this.getLimitY();
+     }
+ 
++    public int getOriginX() {
++        return this.x;
++    }
++
++    public int getOriginY() {
++        return this.y;
++    }
++
++    public int getWidth() {
++        return this.width;
++    }
++
++    public int getHeight() {
++        return this.height;
++    }
++
+     public int getCenterX() {
+         return this.x + (this.width / 2);
+     }
+-- 
+2.31.1
+

@@ -1,0 +1,101 @@
+From a0f29b18d181b12955540be5b5f1be84681fee3b Mon Sep 17 00:00:00 2001
+From: hYdos <haydenv06@gmail.com>
+Date: Fri, 2 Jul 2021 21:35:42 +1000
+Subject: [PATCH 1/4] use GlStateManager's glGetShaderi in GlProgram
+
+---
+ .../me/jellysquid/mods/sodium/client/gl/shader/GlProgram.java   | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gl/shader/GlProgram.java b/src/main/java/me/jellysquid/mods/sodium/client/gl/shader/GlProgram.java
+index 13af0b87e..7170a7b9f 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gl/shader/GlProgram.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gl/shader/GlProgram.java
+@@ -87,7 +87,7 @@ public Builder attachShader(GlShader shader) {
+                 LOGGER.warn("Program link log for " + this.name + ": " + log);
+             }
+ 
+-            int result = GL20C.glGetProgrami(this.program, GL20C.GL_LINK_STATUS);
++            int result = GlStateManager.glGetShaderi(this.program, GL20C.GL_LINK_STATUS);
+ 
+             if (result != GL20C.GL_TRUE) {
+                 throw new RuntimeException("Shader program linking failed, see log for details");
+
+From 517c7a409720d9ba9fce69298c785c3b308c7843 Mon Sep 17 00:00:00 2001
+From: hYdos <haydenv06@gmail.com>
+Date: Fri, 2 Jul 2021 21:36:05 +1000
+Subject: [PATCH 2/4] use GlStateManager's glGetShaderi in GlShader
+
+---
+ .../me/jellysquid/mods/sodium/client/gl/shader/GlShader.java    | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gl/shader/GlShader.java b/src/main/java/me/jellysquid/mods/sodium/client/gl/shader/GlShader.java
+index a61f28b90..dfb2cb30e 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gl/shader/GlShader.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gl/shader/GlShader.java
+@@ -30,7 +30,7 @@ public GlShader(RenderDevice owner, ShaderType type, Identifier name, String src
+             LOGGER.warn("Shader compilation log for " + this.name + ": " + log);
+         }
+ 
+-        int result = GL20C.glGetShaderi(handle, GL20C.GL_COMPILE_STATUS);
++        int result = GlStateManager.glGetShaderi(handle, GL20C.GL_COMPILE_STATUS);
+ 
+         if (result != GL20C.GL_TRUE) {
+             throw new RuntimeException("Shader compilation failed, see log for details");
+
+From 6ad63cbee7782eea74b33e8e2c586460263c0d90 Mon Sep 17 00:00:00 2001
+From: hYdos <haydenv06@gmail.com>
+Date: Sat, 3 Jul 2021 06:32:38 +1000
+Subject: [PATCH 3/4] glGetShaderi -> glGetProgrami
+
+---
+ .../me/jellysquid/mods/sodium/client/gl/shader/GlProgram.java   | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gl/shader/GlProgram.java b/src/main/java/me/jellysquid/mods/sodium/client/gl/shader/GlProgram.java
+index 7170a7b9f..c2fe275ca 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gl/shader/GlProgram.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gl/shader/GlProgram.java
+@@ -87,7 +87,7 @@ public Builder attachShader(GlShader shader) {
+                 LOGGER.warn("Program link log for " + this.name + ": " + log);
+             }
+ 
+-            int result = GlStateManager.glGetShaderi(this.program, GL20C.GL_LINK_STATUS);
++            int result = GlStateManager.glGetProgrami(this.program, GL20C.GL_LINK_STATUS);
+ 
+             if (result != GL20C.GL_TRUE) {
+                 throw new RuntimeException("Shader program linking failed, see log for details");
+
+From 570cebacf09af842fcd3b8f9756a6cb31cebf0d6 Mon Sep 17 00:00:00 2001
+From: hYdos <haydenv06@gmail.com>
+Date: Sat, 3 Jul 2021 06:41:05 +1000
+Subject: [PATCH 4/4] I was a bit tired and also forgot import's. sorry
+
+---
+ .../me/jellysquid/mods/sodium/client/gl/shader/GlProgram.java    | 1 +
+ .../me/jellysquid/mods/sodium/client/gl/shader/GlShader.java     | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gl/shader/GlProgram.java b/src/main/java/me/jellysquid/mods/sodium/client/gl/shader/GlProgram.java
+index c2fe275ca..1d86b4e28 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gl/shader/GlProgram.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gl/shader/GlProgram.java
+@@ -1,5 +1,6 @@
+ package me.jellysquid.mods.sodium.client.gl.shader;
+ 
++import com.mojang.blaze3d.platform.GlStateManager;
+ import me.jellysquid.mods.sodium.client.gl.GlObject;
+ import me.jellysquid.mods.sodium.client.gl.device.RenderDevice;
+ import net.minecraft.util.Identifier;
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gl/shader/GlShader.java b/src/main/java/me/jellysquid/mods/sodium/client/gl/shader/GlShader.java
+index dfb2cb30e..79e5f6068 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gl/shader/GlShader.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gl/shader/GlShader.java
+@@ -1,5 +1,6 @@
+ package me.jellysquid.mods.sodium.client.gl.shader;
+ 
++import com.mojang.blaze3d.platform.GlStateManager;
+ import me.jellysquid.mods.sodium.client.gl.GlObject;
+ import me.jellysquid.mods.sodium.client.gl.device.RenderDevice;
+ import net.minecraft.util.Identifier;

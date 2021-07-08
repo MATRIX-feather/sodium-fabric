@@ -1,0 +1,81 @@
+From bf50f39d66ac39eded0a88d5a1e3381ebf916b52 Mon Sep 17 00:00:00 2001
+From: MATRIX-feather <midnightcarnival@outlook.com>
+Date: Mon, 5 Jul 2021 01:11:20 +0800
+Subject: [PATCH] =?UTF-8?q?enchance:=20=E7=A7=BB=E9=99=A4=E4=B8=80?=
+ =?UTF-8?q?=E4=BA=9B=E4=B8=8D=E5=BF=85=E8=A6=81=E7=9A=84=E4=B8=9C=E8=A5=BF?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .../mods/sodium/client/gui/options/control/ControlElement.java | 1 -
+ .../mods/sodium/client/gui/widgets/FlatButtonWidget.java       | 3 +--
+ .../me/jellysquid/mods/sodium/client/world/WorldSlice.java     | 3 +--
+ .../features/texture_updates/MixinSpriteInterpolated.java      | 1 -
+ 4 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/control/ControlElement.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/control/ControlElement.java
+index 8832cc3..cc3fa9b 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/control/ControlElement.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/control/ControlElement.java
+@@ -4,7 +4,6 @@ import me.jellysquid.mods.sodium.client.gui.options.Option;
+ import me.jellysquid.mods.sodium.client.gui.widgets.AbstractWidget;
+ import me.jellysquid.mods.sodium.client.util.Dim2i;
+ import net.minecraft.client.util.math.MatrixStack;
+-import net.minecraft.text.Text;
+ import net.minecraft.util.Formatting;
+ 
+ public class ControlElement<T> extends AbstractWidget {
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/FlatButtonWidget.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/FlatButtonWidget.java
+index aed895a..1250bd9 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/FlatButtonWidget.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/FlatButtonWidget.java
+@@ -1,12 +1,11 @@
+ package me.jellysquid.mods.sodium.client.gui.widgets;
+ 
+ import me.jellysquid.mods.sodium.client.util.Dim2i;
+-import net.minecraft.client.gui.Drawable;
+ import net.minecraft.client.util.math.MatrixStack;
+ import net.minecraft.text.Text;
+ import net.minecraft.text.TranslatableText;
+ 
+-public class FlatButtonWidget extends AbstractWidget implements Drawable {
++public class FlatButtonWidget extends AbstractWidget {
+     private final Dim2i dim;
+     private final Text label;
+     private final Runnable action;
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/world/WorldSlice.java b/src/main/java/me/jellysquid/mods/sodium/client/world/WorldSlice.java
+index 20a6918..48aebb2 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/world/WorldSlice.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/world/WorldSlice.java
+@@ -14,7 +14,6 @@ import net.minecraft.block.entity.BlockEntity;
+ import net.minecraft.fluid.FluidState;
+ import net.minecraft.util.collection.PackedIntegerArray;
+ import net.minecraft.util.math.*;
+-import net.minecraft.world.BlockRenderView;
+ import net.minecraft.world.LightType;
+ import net.minecraft.world.World;
+ import net.minecraft.world.biome.Biome;
+@@ -36,7 +35,7 @@ import java.util.Map;
+  *
+  * Object pooling should be used to avoid huge allocations as this class contains many large arrays.
+  */
+-public class WorldSlice implements BlockRenderView, BiomeAccess.Storage, RenderAttachedBlockView {
++public class WorldSlice implements BiomeAccess.Storage, RenderAttachedBlockView {
+     // The number of blocks on each axis in a section.
+     private static final int SECTION_BLOCK_LENGTH = 16;
+ 
+diff --git a/src/main/java/me/jellysquid/mods/sodium/mixin/features/texture_updates/MixinSpriteInterpolated.java b/src/main/java/me/jellysquid/mods/sodium/mixin/features/texture_updates/MixinSpriteInterpolated.java
+index 6527b11..21bca73 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/mixin/features/texture_updates/MixinSpriteInterpolated.java
++++ b/src/main/java/me/jellysquid/mods/sodium/mixin/features/texture_updates/MixinSpriteInterpolated.java
+@@ -1,6 +1,5 @@
+ package me.jellysquid.mods.sodium.mixin.features.texture_updates;
+ 
+-import me.jellysquid.mods.sodium.client.util.color.ColorARGB;
+ import me.jellysquid.mods.sodium.client.util.color.ColorMixer;
+ import net.minecraft.client.texture.NativeImage;
+ import net.minecraft.client.texture.Sprite;
+-- 
+2.30.2
+

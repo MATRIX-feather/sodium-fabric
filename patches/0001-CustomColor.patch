@@ -1,0 +1,53 @@
+From aaa74da5e7592cb851f5f9da06eb9ec57181cd05 Mon Sep 17 00:00:00 2001
+From: MATRIX-feather <midnightcarnival@outlook.com>
+Date: Thu, 1 Jul 2021 21:04:14 +0800
+Subject: [PATCH] CustomColor
+
+---
+ gradle.properties                                              | 2 +-
+ .../mods/sodium/client/gui/options/control/TickBoxControl.java | 2 +-
+ .../mods/sodium/client/gui/widgets/FlatButtonWidget.java       | 3 ++-
+ 3 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/gradle.properties b/gradle.properties
+index 8e5f734..02b776a 100644
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -9,7 +9,7 @@ loader_version=0.11.3
+ fabric_version=0.36.1+1.17
+ 
+ # Mod Properties
+-mod_version=0.3.0+IRIS1
++mod_version=0.3.0+IRIS1+M
+ maven_group=me.jellysquid.mods
+ archives_base_name=sodium-fabric
+ 
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/control/TickBoxControl.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/control/TickBoxControl.java
+index 6dfba25..c3220fb 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/control/TickBoxControl.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/control/TickBoxControl.java
+@@ -51,7 +51,7 @@ public class TickBoxControl implements Control<Boolean> {
+             final int color;
+ 
+             if (enabled) {
+-                color = ticked ? 0xFF94E4D3 : 0xFFFFFFFF;
++                color = ticked ? 0xFF8AB7EA : 0xFFFFFFFF;
+             } else {
+                 color = 0xFFAAAAAA;
+             }
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/FlatButtonWidget.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/FlatButtonWidget.java
+index 1e8963d..f35a306 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/FlatButtonWidget.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/FlatButtonWidget.java
+@@ -37,7 +37,7 @@ public class FlatButtonWidget extends AbstractWidget implements Drawable {
+         this.drawString(matrixStack, this.label, this.dim.getCenterX() - (strWidth / 2), this.dim.getCenterY() - 4, textColor);
+ 
+         if (this.enabled && this.selected) {
+-            this.drawRect(this.dim.x(), this.dim.getLimitY() - 1, this.dim.getLimitX(), this.dim.getLimitY(), 0xFF94E4D3);
++            this.drawRect(this.dim.x(), this.dim.getLimitY() - 1, this.dim.getLimitX(), this.dim.getLimitY(), 0xFF8AB7EA);
+         }
+     }
+ 
+-- 
+2.30.2
+

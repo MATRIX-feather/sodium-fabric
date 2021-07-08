@@ -1,0 +1,86 @@
+From 83903096d62509d629ee4d0181bebff7bbfac0f6 Mon Sep 17 00:00:00 2001
+From: Lunbun <53448214+lunbun@users.noreply.github.com>
+Date: Sat, 3 Jul 2021 17:51:51 -0700
+Subject: [PATCH] Batch render fps pie
+
+This cuts fps pie rendering time in half.
+---
+ .../sodium/common/config/SodiumConfig.java    |  1 +
+ .../fast_fps_pie/MixinMinecraftClient.java    | 43 +++++++++++++++++++
+ src/main/resources/sodium.mixins.json         |  1 +
+ 3 files changed, 45 insertions(+)
+ create mode 100644 src/main/java/me/jellysquid/mods/sodium/mixin/features/gui/fast_fps_pie/MixinMinecraftClient.java
+
+diff --git a/src/main/java/me/jellysquid/mods/sodium/common/config/SodiumConfig.java b/src/main/java/me/jellysquid/mods/sodium/common/config/SodiumConfig.java
+index 021281a73..3ea82ff2f 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/common/config/SodiumConfig.java
++++ b/src/main/java/me/jellysquid/mods/sodium/common/config/SodiumConfig.java
+@@ -41,6 +41,7 @@ private SodiumConfig() {
+         this.addMixinRule("features.gui", true);
+         this.addMixinRule("features.gui.fast_loading_screen", true);
+         this.addMixinRule("features.gui.fast_status_bars", true);
++        this.addMixinRule("features.gui.fast_fps_pie", true);
+         this.addMixinRule("features.gui.font", true);
+         this.addMixinRule("features.item", true);
+         this.addMixinRule("features.matrix_stack", true);
+diff --git a/src/main/java/me/jellysquid/mods/sodium/mixin/features/gui/fast_fps_pie/MixinMinecraftClient.java b/src/main/java/me/jellysquid/mods/sodium/mixin/features/gui/fast_fps_pie/MixinMinecraftClient.java
+new file mode 100644
+index 000000000..a55fdf044
+--- /dev/null
++++ b/src/main/java/me/jellysquid/mods/sodium/mixin/features/gui/fast_fps_pie/MixinMinecraftClient.java
+@@ -0,0 +1,43 @@
++package me.jellysquid.mods.sodium.mixin.features.gui.fast_fps_pie;
++
++import net.minecraft.client.MinecraftClient;
++import net.minecraft.client.font.TextRenderer;
++import net.minecraft.client.render.Tessellator;
++import net.minecraft.client.render.VertexConsumerProvider;
++import net.minecraft.client.util.math.MatrixStack;
++import net.minecraft.util.profiler.ProfileResult;
++import org.spongepowered.asm.mixin.Final;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.Shadow;
++import org.spongepowered.asm.mixin.injection.At;
++import org.spongepowered.asm.mixin.injection.Inject;
++import org.spongepowered.asm.mixin.injection.Redirect;
++import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
++
++@Mixin(MinecraftClient.class)
++public class MixinMinecraftClient {
++    @Shadow
++    @Final
++    public TextRenderer textRenderer;
++
++    private VertexConsumerProvider.Immediate immediate;
++
++    @Inject(method = "drawProfilerResults", at = @At(value = "INVOKE", ordinal = 0, target = "Lnet/minecraft/client/font/TextRenderer;drawWithShadow(Lnet/minecraft/client/util/math/MatrixStack;Ljava/lang/String;FFI)I"))
++    private void preRenderText(MatrixStack matrices, ProfileResult profileResult, CallbackInfo ci) {
++        this.immediate = VertexConsumerProvider.immediate(Tessellator.getInstance().getBuffer());
++    }
++
++    @Redirect(method = "drawProfilerResults", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/font/TextRenderer;drawWithShadow(Lnet/minecraft/client/util/math/MatrixStack;Ljava/lang/String;FFI)I"))
++    private int drawWithShadow(TextRenderer textRenderer, MatrixStack matrices, String text, float x, float y, int color) {
++        if (text != null) {
++            return this.textRenderer.draw(text, x, y, color, true, matrices.peek().getModel(), this.immediate,
++                    false, 0, 15728880, this.textRenderer.isRightToLeft());
++        }
++        return 0;
++    }
++
++    @Inject(method = "drawProfilerResults", at = @At("TAIL"))
++    private void renderText(MatrixStack matrices, ProfileResult profileResult, CallbackInfo ci) {
++        this.immediate.draw();
++    }
++}
+diff --git a/src/main/resources/sodium.mixins.json b/src/main/resources/sodium.mixins.json
+index b65922274..b85977130 100644
+--- a/src/main/resources/sodium.mixins.json
++++ b/src/main/resources/sodium.mixins.json
+@@ -38,6 +38,7 @@
+     "features.entity.smooth_lighting.MixinEntityRenderer",
+     "features.fast_biome_colors.MixinBackgroundRenderer",
+     "features.fast_biome_colors.MixinClientWorld",
+     "features.gui.fast_status_bars.MixinInGameHud",
+     "features.gui.fast_status_bars.MixinDrawableHelper",
++    "features.gui.fast_fps_pie.MixinMinecraftClient",
+     "features.gui.MixinDebugHud",
