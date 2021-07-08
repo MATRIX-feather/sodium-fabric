@@ -13,6 +13,22 @@ public record Dim2i(int x, int y, int width, int height) {
         return x >= this.x && x < this.getLimitX() && y >= this.y && y < this.getLimitY();
     }
 
+    public int getOriginX() {
+        return this.x;
+    }
+
+    public int getOriginY() {
+        return this.y;
+    }
+
+    public int getWidth() {
+        return this.width;
+    }
+
+    public int getHeight() {
+        return this.height;
+    }
+
     public int getCenterX() {
         return this.x + (this.width / 2);
     }
