@@ -1,0 +1,138 @@
+From 9568ec7f42aedd0e7599bc423aa271b1c2a140b1 Mon Sep 17 00:00:00 2001
+From: MATRIX-feather <midnightcarnival@outlook.com>
+Date: Tue, 6 Jul 2021 10:03:42 +0800
+Subject: [PATCH] upstream pr 710: Prevent rendering sky when fog distance is
+ reduced
+
+---
+ build.gradle                                  |  4 +-
+ gradle.properties                             |  2 +-
+ .../sodium/common/config/SodiumConfig.java    |  1 +
+ .../features/sky/MixinWorldRenderer.java      | 62 +++++++++++++++++++
+ src/main/resources/sodium.mixins.json         |  1 +
+ 5 files changed, 67 insertions(+), 3 deletions(-)
+ create mode 100644 src/main/java/me/jellysquid/mods/sodium/mixin/features/sky/MixinWorldRenderer.java
+
+diff --git a/build.gradle b/build.gradle
+index 9d93c9b..01ca96f 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -3,8 +3,8 @@ plugins {
+     id 'org.ajoberstar.grgit' version '4.1.0'
+ }
+ 
+-sourceCompatibility = "1.8"
+-targetCompatibility = "1.8"
++sourceCompatibility = JavaVersion.VERSION_16
++targetCompatibility = JavaVersion.VERSION_16
+ 
+ archivesBaseName = "${project.archives_base_name}-mc${project.minecraft_version}"
+ version = "${project.mod_version}+${getVersionMetadata()}"
+diff --git a/gradle.properties b/gradle.properties
+index a0fd2cc..9969754 100644
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -5,7 +5,7 @@ org.gradle.jvmargs=-Xmx1G
+ # check these on https://modmuss50.me/fabric.html
+ minecraft_version=1.17
+ yarn_mappings=1.17+build.1
+-loader_version=0.11.3
++loader_version=0.11.6
+ fabric_version=0.34.9+1.17
+ 
+ # Mod Properties
+diff --git a/src/main/java/me/jellysquid/mods/sodium/common/config/SodiumConfig.java b/src/main/java/me/jellysquid/mods/sodium/common/config/SodiumConfig.java
+index 3ea82ff..ddfba8b 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/common/config/SodiumConfig.java
++++ b/src/main/java/me/jellysquid/mods/sodium/common/config/SodiumConfig.java
+@@ -51,6 +51,7 @@ public class SodiumConfig {
+         this.addMixinRule("features.particle.cull", true);
+         this.addMixinRule("features.particle.fast_render", true);
+         this.addMixinRule("features.render_layer", true);
++        this.addMixinRule("features.sky", true);
+         this.addMixinRule("features.texture_tracking", true);
+         this.addMixinRule("features.texture_updates", true);
+         this.addMixinRule("features.world_ticking", true);
+diff --git a/src/main/java/me/jellysquid/mods/sodium/mixin/features/sky/MixinWorldRenderer.java b/src/main/java/me/jellysquid/mods/sodium/mixin/features/sky/MixinWorldRenderer.java
+new file mode 100644
+index 0000000..164be07
+--- /dev/null
++++ b/src/main/java/me/jellysquid/mods/sodium/mixin/features/sky/MixinWorldRenderer.java
+@@ -0,0 +1,62 @@
++package me.jellysquid.mods.sodium.mixin.features.sky;
++
++import org.spongepowered.asm.mixin.Final;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.Shadow;
++import org.spongepowered.asm.mixin.injection.At;
++import org.spongepowered.asm.mixin.injection.Inject;
++import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
++import net.minecraft.client.MinecraftClient;
++import net.minecraft.client.render.BackgroundRenderer;
++import net.minecraft.client.render.Camera;
++import net.minecraft.client.render.CameraSubmersionType;
++import net.minecraft.client.render.WorldRenderer;
++import net.minecraft.client.util.math.MatrixStack;
++import net.minecraft.entity.Entity;
++import net.minecraft.entity.LivingEntity;
++import net.minecraft.entity.effect.StatusEffects;
++import net.minecraft.util.math.MathHelper;
++import net.minecraft.util.math.Matrix4f;
++import net.minecraft.util.math.Vec3d;
++
++@Mixin(WorldRenderer.class)
++public class MixinWorldRenderer {
++    @Shadow
++    @Final
++    private MinecraftClient client;
++
++    /**
++     * <p>Prevents the sky layer from rendering when the fog distance is reduced
++     * from the default. This helps prevent situations where the sky can be seen
++     * through chunks culled by fog occlusion. This also fixes the vanilla issue
++     * <a href="https://bugs.mojang.com/browse/MC-152504">MC-152504</a> since it
++     * is also caused by being able to see the sky through invisible chunks.</p>
++     *
++     * <p>However, this fix comes with some caveats. When underwater, it becomes
++     * impossible to see the sun, stars, and moon since the sky is not rendered.
++     * While this does not exactly match the vanilla game, it is consistent with
++     * what Bedrock Edition does, so it can be considered vanilla-style. This is
++     * also more "correct" in the sense that underwater fog is applied to chunks
++     * outside of water, so the fog should also be covering the sun and sky.</p>
++     *
++     * <p>When updating Sodium, please ensure that {@link CallbackInfo#cancel()}
++     * is called when the fog distance is not the default. The logic for the fog
++     * distance is found in {@link BackgroundRenderer#applyFog()}. If the end of
++     * the fog is set to the render distance, the sky shouldn't be rendered.</p>
++     */
++    @Inject(method = "renderSky", at = @At("HEAD"), cancellable = true)
++    private void preRenderSky(MatrixStack matrices, Matrix4f matrix4f, float tickDelta, Runnable runnable, CallbackInfo callbackInfo) {
++        Camera camera = this.client.gameRenderer.getCamera();
++        Vec3d cameraPosition = camera.getPos();
++        Entity cameraEntity = camera.getFocusedEntity();
++
++        boolean isSubmersed = camera.getSubmersionType() != CameraSubmersionType.NONE;
++        boolean hasBlindness = cameraEntity instanceof LivingEntity entity && entity.hasStatusEffect(StatusEffects.BLINDNESS);
++        boolean useThickFog = this.client.world.getSkyProperties().useThickFog(MathHelper.floor(cameraPosition.getX()),
++                MathHelper.floor(cameraPosition.getY())) || this.client.inGameHud.getBossBarHud().shouldThickenFog();
++
++        if (isSubmersed || hasBlindness || useThickFog) {
++            callbackInfo.cancel();
++        }
++    }
++}
+diff --git a/src/main/resources/sodium.mixins.json b/src/main/resources/sodium.mixins.json
+index 7304285..70b2543 100644
+--- a/src/main/resources/sodium.mixins.json
++++ b/src/main/resources/sodium.mixins.json
+@@ -53,6 +53,7 @@
+     "features.particle.cull.MixinParticleManager",
+     "features.particle.fast_render.MixinBillboardParticle",
+     "features.render_layer.MixinRenderLayers",
++    "features.sky.MixinWorldRenderer",
+     "features.texture_tracking.MixinSprite",
+     "features.texture_tracking.MixinSpriteAnimation",
+     "features.texture_tracking.MixinSpriteAtlasTexture",
+-- 
+2.31.1
+

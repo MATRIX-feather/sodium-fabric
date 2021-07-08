@@ -1,0 +1,239 @@
+From 3d6778298e38cb1d0048f03778266fd70f413e32 Mon Sep 17 00:00:00 2001
+From: Lunbun <53448214+lunbun@users.noreply.github.com>
+Date: Fri, 2 Jul 2021 00:56:02 -0700
+Subject: [PATCH 1/2] new: Batch status bar rendering
+
+---
+ .../sodium/common/config/SodiumConfig.java    |  1 +
+ .../gui/fast_status_bars/MixinInGameHud.java  | 64 +++++++++++++++++++
+ src/main/resources/sodium.mixins.json         |  1 +
+ 3 files changed, 66 insertions(+)
+ create mode 100644 src/main/java/me/jellysquid/mods/sodium/mixin/features/gui/fast_status_bars/MixinInGameHud.java
+
+diff --git a/src/main/java/me/jellysquid/mods/sodium/common/config/SodiumConfig.java b/src/main/java/me/jellysquid/mods/sodium/common/config/SodiumConfig.java
+index 9ab0f37cf..870b177d9 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/common/config/SodiumConfig.java
++++ b/src/main/java/me/jellysquid/mods/sodium/common/config/SodiumConfig.java
+@@ -40,6 +40,7 @@ private SodiumConfig() {
+         this.addMixinRule("features.entity.smooth_lighting", true);
+         this.addMixinRule("features.gui", true);
+         this.addMixinRule("features.gui.fast_loading_screen", true);
++        this.addMixinRule("features.gui.fast_status_bars", true);
+         this.addMixinRule("features.gui.font", true);
+         this.addMixinRule("features.item", true);
+         this.addMixinRule("features.matrix_stack", true);
+diff --git a/src/main/java/me/jellysquid/mods/sodium/mixin/features/gui/fast_status_bars/MixinInGameHud.java b/src/main/java/me/jellysquid/mods/sodium/mixin/features/gui/fast_status_bars/MixinInGameHud.java
+new file mode 100644
+index 000000000..915478221
+--- /dev/null
++++ b/src/main/java/me/jellysquid/mods/sodium/mixin/features/gui/fast_status_bars/MixinInGameHud.java
+@@ -0,0 +1,64 @@
++package me.jellysquid.mods.sodium.mixin.features.gui.fast_status_bars;
++
++import com.mojang.blaze3d.systems.RenderSystem;
++import net.minecraft.client.gui.DrawableHelper;
++import net.minecraft.client.gui.hud.InGameHud;
++import net.minecraft.client.render.*;
++import net.minecraft.client.util.math.MatrixStack;
++import net.minecraft.entity.player.PlayerEntity;
++import net.minecraft.util.math.Matrix4f;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.Shadow;
++import org.spongepowered.asm.mixin.injection.At;
++import org.spongepowered.asm.mixin.injection.Inject;
++import org.spongepowered.asm.mixin.injection.Redirect;
++import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
++
++@Mixin(InGameHud.class)
++public abstract class MixinInGameHud extends DrawableHelper {
++    @Shadow
++    protected abstract PlayerEntity getCameraPlayer();
++
++    // It's possible for status bar rendering to be skipped
++    private boolean isRenderingStatusBars;
++
++    @Inject(method = "renderStatusBars", at = @At("HEAD"))
++    private void preRenderStatusBars(MatrixStack matrices, CallbackInfo ci) {
++        if (this.getCameraPlayer() != null) {
++            BufferBuilder bufferBuilder = Tessellator.getInstance().getBuffer();
++            RenderSystem.setShader(GameRenderer::getPositionTexShader);
++            bufferBuilder.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE);
++            this.isRenderingStatusBars = true;
++        } else {
++            this.isRenderingStatusBars = false;
++        }
++    }
++
++    @Redirect(method = { "renderStatusBars", "drawHeart" }, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/InGameHud;drawTexture(Lnet/minecraft/client/util/math/MatrixStack;IIIIII)V"))
++    private void drawTexture(InGameHud inGameHud, MatrixStack matrices, int x0, int y0, int u, int v, int width, int height) {
++        Matrix4f matrix = matrices.peek().getModel();
++        int x1 = x0 + width;
++        int y1 = y0 + height;
++        int z = this.getZOffset();
++        // Default texture size is 256x256
++        float u0 = u / 256f;
++        float u1 = (u + width) / 256f;
++        float v0 = v / 256f;
++        float v1 = (v + height) / 256f;
++
++        BufferBuilder bufferBuilder = Tessellator.getInstance().getBuffer();
++        bufferBuilder.vertex(matrix, x0, y1, z).texture(u0, v1).next();
++        bufferBuilder.vertex(matrix, x1, y1, z).texture(u1, v1).next();
++        bufferBuilder.vertex(matrix, x1, y0, z).texture(u1, v0).next();
++        bufferBuilder.vertex(matrix, x0, y0, z).texture(u0, v0).next();
++    }
++
++    @Inject(method = "renderStatusBars", at = @At("RETURN"))
++    private void renderStatusBars(MatrixStack matrices, CallbackInfo ci) {
++        if (this.isRenderingStatusBars) {
++            BufferBuilder bufferBuilder = Tessellator.getInstance().getBuffer();
++            bufferBuilder.end();
++            BufferRenderer.draw(bufferBuilder);
++        }
++    }
++}
+diff --git a/src/main/resources/sodium.mixins.json b/src/main/resources/sodium.mixins.json
+index fe262f78b..fee2467d9 100644
+--- a/src/main/resources/sodium.mixins.json
++++ b/src/main/resources/sodium.mixins.json
+@@ -38,6 +38,7 @@
+     "features.entity.smooth_lighting.MixinEntityRenderer",
+     "features.fast_biome_colors.MixinBackgroundRenderer",
+     "features.fast_biome_colors.MixinClientWorld",
++    "features.gui.fast_status_bars.MixinInGameHud",
+     "features.gui.MixinDebugHud",
+     "features.gui.fast_loading_screen.MixinLevelLoadingScreen",
+     "features.gui.font.MixinGlyphRenderer",
+
+From 54491bc2e46c2a3def57e627ceea2849af4f58c3 Mon Sep 17 00:00:00 2001
+From: Lunbun <53448214+lunbun@users.noreply.github.com>
+Date: Sat, 3 Jul 2021 00:52:30 -0700
+Subject: [PATCH 2/2] Indirectly batch status bar rendering
+
+---
+ .../render/gui/BatchedDrawableHelper.java     |  5 ++++
+ .../fast_status_bars/MixinDrawableHelper.java | 26 +++++++++++++++++++
+ .../gui/fast_status_bars/MixinInGameHud.java  | 26 ++++---------------
+ src/main/resources/sodium.mixins.json         |  1 +
+ 4 files changed, 37 insertions(+), 21 deletions(-)
+ create mode 100644 src/main/java/me/jellysquid/mods/sodium/client/render/gui/BatchedDrawableHelper.java
+ create mode 100644 src/main/java/me/jellysquid/mods/sodium/mixin/features/gui/fast_status_bars/MixinDrawableHelper.java
+
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/render/gui/BatchedDrawableHelper.java b/src/main/java/me/jellysquid/mods/sodium/client/render/gui/BatchedDrawableHelper.java
+new file mode 100644
+index 000000000..48ca88a70
+--- /dev/null
++++ b/src/main/java/me/jellysquid/mods/sodium/client/render/gui/BatchedDrawableHelper.java
+@@ -0,0 +1,5 @@
++package me.jellysquid.mods.sodium.client.render.gui;
++
++public class BatchedDrawableHelper {
++    public static boolean inTextureBatch = false;
++}
+diff --git a/src/main/java/me/jellysquid/mods/sodium/mixin/features/gui/fast_status_bars/MixinDrawableHelper.java b/src/main/java/me/jellysquid/mods/sodium/mixin/features/gui/fast_status_bars/MixinDrawableHelper.java
+new file mode 100644
+index 000000000..b9d9e2561
+--- /dev/null
++++ b/src/main/java/me/jellysquid/mods/sodium/mixin/features/gui/fast_status_bars/MixinDrawableHelper.java
+@@ -0,0 +1,26 @@
++package me.jellysquid.mods.sodium.mixin.features.gui.fast_status_bars;
++
++import me.jellysquid.mods.sodium.client.render.gui.BatchedDrawableHelper;
++import net.minecraft.client.gui.DrawableHelper;
++import net.minecraft.client.render.BufferBuilder;
++import net.minecraft.client.render.Tessellator;
++import net.minecraft.util.math.Matrix4f;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.injection.At;
++import org.spongepowered.asm.mixin.injection.Inject;
++import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
++
++@Mixin(DrawableHelper.class)
++public class MixinDrawableHelper {
++    @Inject(method = "drawTexturedQuad", at = @At("HEAD"), cancellable = true)
++    private static void drawTexturedQuad(Matrix4f matrices, int x0, int x1, int y0, int y1, int z, float u0, float u1, float v0, float v1, CallbackInfo ci) {
++        if (BatchedDrawableHelper.inTextureBatch) {
++            BufferBuilder bufferBuilder = Tessellator.getInstance().getBuffer();
++            bufferBuilder.vertex(matrices, (float) x0, (float) y1, (float) z).texture(u0, v1).next();
++            bufferBuilder.vertex(matrices, (float) x1, (float) y1, (float) z).texture(u1, v1).next();
++            bufferBuilder.vertex(matrices, (float) x1, (float) y0, (float) z).texture(u1, v0).next();
++            bufferBuilder.vertex(matrices, (float) x0, (float) y0, (float) z).texture(u0, v0).next();
++            ci.cancel();
++        }
++    }
++}
+diff --git a/src/main/java/me/jellysquid/mods/sodium/mixin/features/gui/fast_status_bars/MixinInGameHud.java b/src/main/java/me/jellysquid/mods/sodium/mixin/features/gui/fast_status_bars/MixinInGameHud.java
+index 915478221..a4a307237 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/mixin/features/gui/fast_status_bars/MixinInGameHud.java
++++ b/src/main/java/me/jellysquid/mods/sodium/mixin/features/gui/fast_status_bars/MixinInGameHud.java
+@@ -1,17 +1,16 @@
+ package me.jellysquid.mods.sodium.mixin.features.gui.fast_status_bars;
+ 
+ import com.mojang.blaze3d.systems.RenderSystem;
++import me.jellysquid.mods.sodium.client.render.gui.BatchedDrawableHelper;
+ import net.minecraft.client.gui.DrawableHelper;
+ import net.minecraft.client.gui.hud.InGameHud;
+ import net.minecraft.client.render.*;
+ import net.minecraft.client.util.math.MatrixStack;
+ import net.minecraft.entity.player.PlayerEntity;
+-import net.minecraft.util.math.Matrix4f;
+ import org.spongepowered.asm.mixin.Mixin;
+ import org.spongepowered.asm.mixin.Shadow;
+ import org.spongepowered.asm.mixin.injection.At;
+ import org.spongepowered.asm.mixin.injection.Inject;
+-import org.spongepowered.asm.mixin.injection.Redirect;
+ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+ 
+ @Mixin(InGameHud.class)
+@@ -28,34 +27,19 @@ private void preRenderStatusBars(MatrixStack matrices, CallbackInfo ci) {
+             BufferBuilder bufferBuilder = Tessellator.getInstance().getBuffer();
+             RenderSystem.setShader(GameRenderer::getPositionTexShader);
+             bufferBuilder.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE);
++
++            BatchedDrawableHelper.inTextureBatch = true;
+             this.isRenderingStatusBars = true;
+         } else {
+             this.isRenderingStatusBars = false;
+         }
+     }
+ 
+-    @Redirect(method = { "renderStatusBars", "drawHeart" }, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/InGameHud;drawTexture(Lnet/minecraft/client/util/math/MatrixStack;IIIIII)V"))
+-    private void drawTexture(InGameHud inGameHud, MatrixStack matrices, int x0, int y0, int u, int v, int width, int height) {
+-        Matrix4f matrix = matrices.peek().getModel();
+-        int x1 = x0 + width;
+-        int y1 = y0 + height;
+-        int z = this.getZOffset();
+-        // Default texture size is 256x256
+-        float u0 = u / 256f;
+-        float u1 = (u + width) / 256f;
+-        float v0 = v / 256f;
+-        float v1 = (v + height) / 256f;
+-
+-        BufferBuilder bufferBuilder = Tessellator.getInstance().getBuffer();
+-        bufferBuilder.vertex(matrix, x0, y1, z).texture(u0, v1).next();
+-        bufferBuilder.vertex(matrix, x1, y1, z).texture(u1, v1).next();
+-        bufferBuilder.vertex(matrix, x1, y0, z).texture(u1, v0).next();
+-        bufferBuilder.vertex(matrix, x0, y0, z).texture(u0, v0).next();
+-    }
+-
+     @Inject(method = "renderStatusBars", at = @At("RETURN"))
+     private void renderStatusBars(MatrixStack matrices, CallbackInfo ci) {
+         if (this.isRenderingStatusBars) {
++            BatchedDrawableHelper.inTextureBatch = false;
++
+             BufferBuilder bufferBuilder = Tessellator.getInstance().getBuffer();
+             bufferBuilder.end();
+             BufferRenderer.draw(bufferBuilder);
+diff --git a/src/main/resources/sodium.mixins.json b/src/main/resources/sodium.mixins.json
+index b65922274..681aee35d 100644
+--- a/src/main/resources/sodium.mixins.json
++++ b/src/main/resources/sodium.mixins.json
+@@ -38,6 +38,7 @@
+     "features.entity.smooth_lighting.MixinEntityRenderer",
+     "features.fast_biome_colors.MixinBackgroundRenderer",
+     "features.fast_biome_colors.MixinClientWorld",
+     "features.gui.fast_status_bars.MixinInGameHud",
++    "features.gui.fast_status_bars.MixinDrawableHelper",
+     "features.gui.MixinDebugHud",
+     "features.gui.fast_loading_screen.MixinLevelLoadingScreen",
+     "features.gui.font.MixinGlyphRenderer",
