@@ -77,7 +77,6 @@ public class RenderSectionManager implements ChunkStatusListener {
     private final Long2ReferenceMap<RenderSection> sections = new Long2ReferenceOpenHashMap<>();
 
     private final Map<ChunkUpdateType, PriorityQueue<RenderSection>> rebuildQueues = new EnumMap<>(ChunkUpdateType.class);
-    private final PriorityQueue<ChunkBuildResult> deferredUploadQueue = new ObjectArrayFIFOQueue<>();
 
     private final ChunkAdjacencyMap adjacencyMap = new ChunkAdjacencyMap();
 
@@ -387,12 +386,15 @@ public class RenderSectionManager implements ChunkStatusListener {
             }
 
             ChunkRenderBuildTask task = this.createRebuildTask(section);
-            CompletableFuture<ChunkBuildResult> future = this.builder.schedule(task);
+            CompletableFuture<?> future;
 
             if (filterType.isImportant()) {
-                immediateFutures.enqueue(future);
+                CompletableFuture<ChunkBuildResult> immediateFuture = this.builder.schedule(task);
+                immediateFutures.enqueue(immediateFuture);
+
+                future = immediateFuture;
             } else {
-                future.thenAccept(this::addToDeferredUploadQueue);
+                future = this.builder.scheduleDeferred(task);
             }
 
             section.onBuildSubmitted(future);
@@ -403,22 +405,16 @@ public class RenderSectionManager implements ChunkStatusListener {
         return immediateFutures;
     }
 
-    private void addToDeferredUploadQueue(ChunkBuildResult result) {
-        synchronized (this.deferredUploadQueue) {
-            this.deferredUploadQueue.enqueue(result);
-        }
-    }
-
     private boolean performPendingUploads() {
-        synchronized (this.deferredUploadQueue) {
-            if (this.deferredUploadQueue.isEmpty()) {
-                return false;
-            }
+        Iterator<ChunkBuildResult> it = this.builder.createDeferredBuildResultDrain();
 
-            this.regions.upload(RenderDevice.INSTANCE.createCommandList(), new QueueDrainingIterator<>(this.deferredUploadQueue));
-
-            return true;
+        if (!it.hasNext()) {
+            return false;
         }
+
+        this.regions.upload(RenderDevice.INSTANCE.createCommandList(), it);
+
+        return true;
     }
 
     public ChunkRenderBuildTask createRebuildTask(RenderSection render) {
@@ -455,10 +451,13 @@ public class RenderSectionManager implements ChunkStatusListener {
     }
 
     public int getTotalSections() {
-        return this.regions.getLoadedRegions()
-                .stream()
-                .mapToInt(RenderRegion::getChunkCount)
-                .sum();
+        int sum = 0;
+
+        for (RenderRegion region : this.regions.getLoadedRegions()) {
+            sum += region.getChunkCount();
+        }
+
+        return sum;
     }
 
     public int getVisibleChunkCount() {
