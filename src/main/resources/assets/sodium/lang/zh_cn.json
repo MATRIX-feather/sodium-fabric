@@ -58,5 +58,7 @@
   "sodium.options.allow_direct_memory_access.name": "启用内存直接访问",
   "sodium.options.allow_direct_memory_access.tooltip": "启用后，一些关键代码路径将被允许使用直接内存访问来提高性能。这通常会大大降低方块和实体渲染的CPU开销，但会使诊断某些错误和崩溃变得更加困难。您应该只在被要求这么做或知道自己再做什么时禁用它。",
   "sodium.options.use_block_face_culling.name": "启用方块面剔除",
-  "sodium.options.use_block_face_culling.tooltip": "启用后，只有面向相机的方块的面才会被提交进行渲染。这可以在渲染过程的早期消除大量方块面，从而节省GPU上的内存带宽和时间。一些资源包可能会与此项冲突，因此如果您在方块中看到空洞，请尝试禁用它。"
+  "sodium.options.use_block_face_culling.tooltip": "启用后，只有面向相机的方块的面才会被提交进行渲染。这可以在渲染过程的早期消除大量方块面，从而节省GPU上的内存带宽和时间。一些资源包可能会与此项冲突，因此如果您在方块中看到空洞，请尝试禁用它。",
+  "sodium.options.enable_memory_tracing.name": "启用内存跟踪",
+  "sodium.options.enable_memory_tracing.tooltip": "调试功能。启用后，堆栈跟踪将与内存分配一起收集，以帮助在检测到内存泄漏时改进诊断信息。"
 }
