@@ -31,14 +31,14 @@ public class XHFPModelVertexBufferWriterNio extends VertexBufferWriterNio implem
     private Vec3f normal = new Vec3f();
 
     @Override
-    public void writeVertex(int offsetX, int offsetY, int offsetZ, float posX, float posY, float posZ, int color, float u, float v, int light) {
+    public void writeVertex(float posX, float posY, float posZ, int color, float u, float v, int light, int chunkId) {
         uSum += u;
         vSum += v;
 
         short materialId = idHolder.id;
         short renderType = idHolder.renderType;
 
-        this.writeQuadInternal(offsetX, offsetY, offsetZ, posX, posY, posZ, color, u, v, light, materialId, renderType);
+        this.writeQuadInternal(posX, posY, posZ, color, u, v, light, materialId, renderType, chunkId);
     }
 
     /*@Override
@@ -62,8 +62,8 @@ public class XHFPModelVertexBufferWriterNio extends VertexBufferWriterNio implem
         );
     }*/
 
-    private void writeQuadInternal(int offsetX, int offsetY, int offsetZ, float posX, float posY, float posZ, int color,
-                                   float u, float v, int light, short materialId, short renderType) {
+    private void writeQuadInternal(float posX, float posY, float posZ, int color,
+                                   float u, float v, int light, short materialId, short renderType, int chunkId) {
         int i = this.writeOffset;
 
         vertexCount++;
@@ -71,27 +71,24 @@ public class XHFPModelVertexBufferWriterNio extends VertexBufferWriterNio implem
 
         ByteBuffer buffer = this.byteBuffer;
 
-        buffer.put(i, (byte) offsetX);
-        buffer.put(i + 1, (byte) offsetY);
-        buffer.put(i + 2, (byte) offsetZ);
+        buffer.putShort(i + 0, XHFPModelVertexType.encodePosition(posX));
+        buffer.putShort(i + 2, XHFPModelVertexType.encodePosition(posY));
+        buffer.putShort(i + 4, XHFPModelVertexType.encodePosition(posZ));
+        buffer.putShort(i + 6, (short) chunkId);
 
-        buffer.putShort(i + 4, XHFPModelVertexType.encodePosition(posX));
-        buffer.putShort(i + 6, XHFPModelVertexType.encodePosition(posY));
-        buffer.putShort(i + 8, XHFPModelVertexType.encodePosition(posZ));
+        buffer.putInt(i + 8, color);
 
-        buffer.putInt(i + 12, color);
+        buffer.putShort(i + 12, XHFPModelVertexType.encodeBlockTexture(u));
+        buffer.putShort(i + 14, XHFPModelVertexType.encodeBlockTexture(v));
 
-        buffer.putShort(i + 16, XHFPModelVertexType.encodeBlockTexture(u));
-        buffer.putShort(i + 18, XHFPModelVertexType.encodeBlockTexture(v));
-
-        buffer.putInt(i + 20, XHFPModelVertexType.encodeLightMapTexCoord(light));
+        buffer.putInt(i + 16, XHFPModelVertexType.encodeLightMapTexCoord(light));
 
         // NB: We don't set midTexCoord, normal, and tangent here, they will be filled in later.
         // block ID
-        buffer.putShort(i + 36, materialId);
-        buffer.putShort(i + 38, renderType);
+        buffer.putShort(i + 32, materialId);
+        buffer.putShort(i + 36, renderType);
+        buffer.putShort(i + 38, (short) 0);
         buffer.putShort(i + 40, (short) 0);
-        buffer.putShort(i + 42, (short) 0);
 
         if (vertexCount == 4) {
             // TODO: Consider applying similar vertex coordinate transformations as the normal HFP texture coordinates
@@ -99,10 +96,10 @@ public class XHFPModelVertexBufferWriterNio extends VertexBufferWriterNio implem
             short midV = (short)(65536.0F * (vSum * 0.25f));
             int midTexCoord = (midV << 16) | midU;
 
-            buffer.putInt(i + 24, midTexCoord);
-            buffer.putInt(i + 24 - STRIDE, midTexCoord);
-            buffer.putInt(i + 24 - STRIDE * 2, midTexCoord);
-            buffer.putInt(i + 24 - STRIDE * 3, midTexCoord);
+            buffer.putInt(i + 20, midTexCoord);
+            buffer.putInt(i + 20 - STRIDE, midTexCoord);
+            buffer.putInt(i + 20 - STRIDE * 2, midTexCoord);
+            buffer.putInt(i + 20 - STRIDE * 3, midTexCoord);
 
             vertexCount = 0;
             uSum = 0;
@@ -117,23 +114,23 @@ public class XHFPModelVertexBufferWriterNio extends VertexBufferWriterNio implem
             NormalHelper.computeFaceNormal(normal, currentQuad);
             int packedNormal = NormalHelper.packNormal(normal, 0.0f);
 
-            buffer.putInt(i + 32, packedNormal);
-            buffer.putInt(i + 32 - STRIDE, packedNormal);
-            buffer.putInt(i + 32 - STRIDE * 2, packedNormal);
-            buffer.putInt(i + 32 - STRIDE * 3, packedNormal);
+            buffer.putInt(i + 28, packedNormal);
+            buffer.putInt(i + 28 - STRIDE, packedNormal);
+            buffer.putInt(i + 28 - STRIDE * 2, packedNormal);
+            buffer.putInt(i + 28 - STRIDE * 3, packedNormal);
 
             // Capture all of the relevant vertex positions
-            float x0 = XHFPModelVertexType.decodePosition(buffer.getShort(i + 4 - STRIDE * 3));
-            float y0 = XHFPModelVertexType.decodePosition(buffer.getShort(i + 6 - STRIDE * 3));
-            float z0 = XHFPModelVertexType.decodePosition(buffer.getShort(i + 8 - STRIDE * 3));
+            float x0 = XHFPModelVertexType.decodePosition(buffer.getShort(i + 0 - STRIDE * 3));
+            float y0 = XHFPModelVertexType.decodePosition(buffer.getShort(i + 2 - STRIDE * 3));
+            float z0 = XHFPModelVertexType.decodePosition(buffer.getShort(i + 4 - STRIDE * 3));
 
-            float x1 = XHFPModelVertexType.decodePosition(buffer.getShort(i + 4 - STRIDE * 2));
-            float y1 = XHFPModelVertexType.decodePosition(buffer.getShort(i + 6 - STRIDE * 2));
-            float z1 = XHFPModelVertexType.decodePosition(buffer.getShort(i + 8 - STRIDE * 2));
+            float x1 = XHFPModelVertexType.decodePosition(buffer.getShort(i + 0 - STRIDE * 2));
+            float y1 = XHFPModelVertexType.decodePosition(buffer.getShort(i + 2 - STRIDE * 2));
+            float z1 = XHFPModelVertexType.decodePosition(buffer.getShort(i + 4 - STRIDE * 2));
 
-            float x2 = XHFPModelVertexType.decodePosition(buffer.getShort(i + 4 - STRIDE));
-            float y2 = XHFPModelVertexType.decodePosition(buffer.getShort(i + 6 - STRIDE));
-            float z2 = XHFPModelVertexType.decodePosition(buffer.getShort(i + 8 - STRIDE));
+            float x2 = XHFPModelVertexType.decodePosition(buffer.getShort(i + 0 - STRIDE));
+            float y2 = XHFPModelVertexType.decodePosition(buffer.getShort(i + 2 - STRIDE));
+            float z2 = XHFPModelVertexType.decodePosition(buffer.getShort(i + 4 - STRIDE));
 
             float edge1x = x1 - x0;
             float edge1y = y1 - y0;
@@ -143,14 +140,14 @@ public class XHFPModelVertexBufferWriterNio extends VertexBufferWriterNio implem
             float edge2y = y2 - y0;
             float edge2z = z2 - z0;
 
-            float u0 = XHFPModelVertexType.decodeBlockTexture(buffer.getShort(i + 16 - STRIDE * 3));
-            float v0 = XHFPModelVertexType.decodeBlockTexture(buffer.getShort(i + 18 - STRIDE * 3));
+            float u0 = XHFPModelVertexType.decodeBlockTexture(buffer.getShort(i + 12 - STRIDE * 3));
+            float v0 = XHFPModelVertexType.decodeBlockTexture(buffer.getShort(i + 14 - STRIDE * 3));
 
-            float u1 = XHFPModelVertexType.decodeBlockTexture(buffer.getShort(i + 16 - STRIDE * 2));
-            float v1 = XHFPModelVertexType.decodeBlockTexture(buffer.getShort(i + 18 - STRIDE * 2));
+            float u1 = XHFPModelVertexType.decodeBlockTexture(buffer.getShort(i + 12 - STRIDE * 2));
+            float v1 = XHFPModelVertexType.decodeBlockTexture(buffer.getShort(i + 14 - STRIDE * 2));
 
-            float u2 = XHFPModelVertexType.decodeBlockTexture(buffer.getShort(i + 16 - STRIDE));
-            float v2 = XHFPModelVertexType.decodeBlockTexture(buffer.getShort(i + 18 - STRIDE));
+            float u2 = XHFPModelVertexType.decodeBlockTexture(buffer.getShort(i + 12 - STRIDE));
+            float v2 = XHFPModelVertexType.decodeBlockTexture(buffer.getShort(i + 14 - STRIDE));
 
             float deltaU1 = u1 - u0;
             float deltaV1 = v1 - v0;
@@ -204,10 +201,10 @@ public class XHFPModelVertexBufferWriterNio extends VertexBufferWriterNio implem
             int tangent = Norm3b.pack(tangentx, tangenty, tangentz);
             tangent |= (tangentW << 24);
 
-            buffer.putInt(i + 28, tangent);
-            buffer.putInt(i + 28 - STRIDE, tangent);
-            buffer.putInt(i + 28 - STRIDE * 2, tangent);
-            buffer.putInt(i + 28 - STRIDE * 3, tangent);
+            buffer.putInt(i + 24, tangent);
+            buffer.putInt(i + 24 - STRIDE, tangent);
+            buffer.putInt(i + 24 - STRIDE * 2, tangent);
+            buffer.putInt(i + 24 - STRIDE * 3, tangent);
         }
 
         this.advance();

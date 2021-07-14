@@ -359,6 +359,7 @@ public class RenderSectionManager implements ChunkStatusListener {
         this.needsUpdate |= this.performPendingUploads();
 
         if (!blockingFutures.isEmpty()) {
+            this.needsUpdate = true;
             this.regions.upload(RenderDevice.INSTANCE.createCommandList(), new FutureQueueDrainingIterator<>(blockingFutures));
         }
 

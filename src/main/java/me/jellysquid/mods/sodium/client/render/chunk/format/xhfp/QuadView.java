@@ -8,14 +8,14 @@ public class QuadView {
 	private static final int STRIDE = XHFPModelVertexType.STRIDE;
 
 	float x(int index) {
-        return XHFPModelVertexType.decodePosition(buffer.getShort(writeOffset + 4 - STRIDE * (3 - index)));
+        return XHFPModelVertexType.decodePosition(buffer.getShort(writeOffset + 0 - STRIDE * (3 - index)));
 	}
 
 	float y(int index) {
-		return XHFPModelVertexType.decodePosition(buffer.getShort(writeOffset + 6 - STRIDE * (3 - index)));
+		return XHFPModelVertexType.decodePosition(buffer.getShort(writeOffset + 2 - STRIDE * (3 - index)));
 	}
 
 	float z(int index) {
-		return XHFPModelVertexType.decodePosition(buffer.getShort(writeOffset + 8 - STRIDE * (3 - index)));
+		return XHFPModelVertexType.decodePosition(buffer.getShort(writeOffset + 4 - STRIDE * (3 - index)));
 	}
 }

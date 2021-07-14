@@ -15,25 +15,24 @@ import net.minecraft.client.render.VertexConsumer;
  * Like HFPModelVertexType, but extended to support Iris. The extensions aren't particularly efficient right now.
  */
 public class XHFPModelVertexType implements ChunkVertexType {
-    static final int STRIDE = 44;
+    static final int STRIDE = 40;
 
     public static final GlVertexFormat<ChunkMeshAttribute> VERTEX_FORMAT = GlVertexFormat.builder(ChunkMeshAttribute.class, STRIDE)
-            .addElement(ChunkMeshAttribute.OFFSET, 0, GlVertexAttributeFormat.UNSIGNED_BYTE, 3, false)
-            .addElement(ChunkMeshAttribute.POSITION, 4, GlVertexAttributeFormat.UNSIGNED_SHORT, 4, false)
-            .addElement(ChunkMeshAttribute.COLOR, 12, GlVertexAttributeFormat.UNSIGNED_BYTE, 4, true)
-            .addElement(ChunkMeshAttribute.BLOCK_TEXTURE, 16, GlVertexAttributeFormat.UNSIGNED_SHORT, 2, false)
-            .addElement(ChunkMeshAttribute.LIGHT_TEXTURE, 20, GlVertexAttributeFormat.UNSIGNED_SHORT, 2, true)
-            .addElement(ChunkMeshAttribute.MID_TEX_COORD, 24, GlVertexAttributeFormat.UNSIGNED_SHORT, 2, true)
-            .addElement(ChunkMeshAttribute.TANGENT, 28, GlVertexAttributeFormat.BYTE, 4, true)
-            .addElement(ChunkMeshAttribute.NORMAL, 32, GlVertexAttributeFormat.BYTE, 3, true)
-            .addElement(ChunkMeshAttribute.BLOCK_ID, 36, GlVertexAttributeFormat.SHORT, 4, false)
+            .addElement(ChunkMeshAttribute.POSITION_ID, 0, GlVertexAttributeFormat.UNSIGNED_SHORT, 4, false)
+            .addElement(ChunkMeshAttribute.COLOR, 8, GlVertexAttributeFormat.UNSIGNED_BYTE, 4, true)
+            .addElement(ChunkMeshAttribute.BLOCK_TEXTURE, 12, GlVertexAttributeFormat.UNSIGNED_SHORT, 2, false)
+            .addElement(ChunkMeshAttribute.LIGHT_TEXTURE, 16, GlVertexAttributeFormat.UNSIGNED_SHORT, 2, true)
+            .addElement(ChunkMeshAttribute.MID_TEX_COORD, 20, GlVertexAttributeFormat.UNSIGNED_SHORT, 2, true)
+            .addElement(ChunkMeshAttribute.TANGENT, 24, GlVertexAttributeFormat.BYTE, 4, true)
+            .addElement(ChunkMeshAttribute.NORMAL, 28, GlVertexAttributeFormat.BYTE, 3, true)
+            .addElement(ChunkMeshAttribute.BLOCK_ID, 32, GlVertexAttributeFormat.SHORT, 4, false)
             .build();
 
     private static final int POSITION_MAX_VALUE = 32768;
     private static final int TEXTURE_MAX_VALUE = 32768;
 
-    private static final float MODEL_ORIGIN = 4.0f;
-    private static final float MODEL_RANGE = 8.0f;
+    private static final float MODEL_ORIGIN = 8.0f;
+    private static final float MODEL_RANGE = 32.0f;
     private static final float MODEL_SCALE = MODEL_RANGE / POSITION_MAX_VALUE;
 
     private static final float MODEL_SCALE_INV = POSITION_MAX_VALUE / MODEL_RANGE;
