@@ -1,0 +1,22 @@
+From f79299e3f7a14c9d5318534c5ce373c82e52bee7 Mon Sep 17 00:00:00 2001
+From: Robbe Pincket <7889478+Kroppeb@users.noreply.github.com>
+Date: Tue, 13 Jul 2021 02:39:59 +0200
+Subject: [PATCH] Fix the culler not invoking after important builds
+
+Signed-off-by: Robbe Pincket <7889478+Kroppeb@users.noreply.github.com>
+---
+ .../mods/sodium/client/render/chunk/RenderSectionManager.java    | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/render/chunk/RenderSectionManager.java b/src/main/java/me/jellysquid/mods/sodium/client/render/chunk/RenderSectionManager.java
+index 6c450eaff..3a242ec1c 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/render/chunk/RenderSectionManager.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/render/chunk/RenderSectionManager.java
+@@ -325,6 +325,7 @@ public void updateChunks() {
+         this.needsUpdate |= this.performPendingUploads();
+ 
+         if (!blockingFutures.isEmpty()) {
++            this.needsUpdate = true;
+             this.regions.upload(RenderDevice.INSTANCE.createCommandList(), new FutureQueueDrainingIterator<>(blockingFutures));
+         }
+ 

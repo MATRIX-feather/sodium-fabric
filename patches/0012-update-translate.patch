@@ -1,0 +1,60 @@
+From 62dd0f1e778a0800d4819a9e883a327b3a6303cd Mon Sep 17 00:00:00 2001
+From: MATRIX-feather <midnightcarnival@outlook.com>
+Date: Thu, 15 Jul 2021 02:33:17 +0800
+Subject: [PATCH] =?UTF-8?q?=E6=9B=B4=E6=96=B0=E7=BF=BB=E8=AF=91?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .../mods/sodium/client/gui/SodiumGameOptionPages.java        | 5 ++---
+ src/main/resources/assets/sodium/lang/en_us.json             | 2 ++
+ src/main/resources/assets/sodium/lang/zh_cn.json             | 4 +++-
+ 3 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/SodiumGameOptionPages.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/SodiumGameOptionPages.java
+index 07f5a2f..ce7901c 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/SodiumGameOptionPages.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/SodiumGameOptionPages.java
+@@ -279,9 +279,8 @@ public class SodiumGameOptionPages {
+                         .build()
+                 )
+                 .add(OptionImpl.createBuilder(boolean.class, sodiumOpts)
+-                        .setName("Enable Memory Tracing")
+-                        .setTooltip("Debugging feature. If enabled, stack traces will be collected alongside memory allocations to help " +
+-                                "improve diagnostic information when memory leaks are detected.")
++                        .setName(new TranslatableText("sodium.options.enable_memory_tracing.name"))
++                        .setTooltip(new TranslatableText("sodium.options.enable_memory_tracing.tooltip"))
+                         .setControl(TickBoxControl::new)
+                         .setImpact(OptionImpact.LOW)
+                         .setBinding((opts, value) -> opts.advanced.enableMemoryTracing = value, opts -> opts.advanced.enableMemoryTracing)
+diff --git a/src/main/resources/assets/sodium/lang/en_us.json b/src/main/resources/assets/sodium/lang/en_us.json
+index c48683c..ecc85f7 100644
+--- a/src/main/resources/assets/sodium/lang/en_us.json
++++ b/src/main/resources/assets/sodium/lang/en_us.json
+@@ -43,6 +43,8 @@
+   "sodium.options.animate_only_visible_textures.tooltip": "If enabled, only animated textures determined to be visible will be updated. This can provide a significant boost to frame rates on some hardware, especially with heavier resource packs. If you experience issues with some textures not being animated, try disabling this option.",
+   "sodium.options.allow_direct_memory_access.name": "Allow Direct Memory Access",
+   "sodium.options.allow_direct_memory_access.tooltip": "If enabled, some critical code paths will be allowed to use direct memory access for performance. This often greatly reduces CPU overhead for chunk and entity rendering, but can make it harder to diagnose some bugs and crashes. You should only disable this if you've been asked to or otherwise know what you're doing.",
++  "sodium.options.enable_memory_tracing.name": "Enable Memory Tracing",
++  "sodium.options.enable_memory_tracing.tooltip": "Debugging feature. If enabled, stack traces will be collected alongside memory allocations to help improve diagnostic information when memory leaks are detected.",
+   "sodium.options.performance_impact_string": "Performance Impact: %s",
+   "sodium.options.buttons.undo": "Undo",
+   "sodium.options.buttons.apply": "Apply",
+diff --git a/src/main/resources/assets/sodium/lang/zh_cn.json b/src/main/resources/assets/sodium/lang/zh_cn.json
+index 2761d97..a8e00c9 100644
+--- a/src/main/resources/assets/sodium/lang/zh_cn.json
++++ b/src/main/resources/assets/sodium/lang/zh_cn.json
+@@ -58,5 +58,7 @@
+   "sodium.options.allow_direct_memory_access.name": "启用内存直接访问",
+   "sodium.options.allow_direct_memory_access.tooltip": "启用后，一些关键代码路径将被允许使用直接内存访问来提高性能。这通常会大大降低方块和实体渲染的CPU开销，但会使诊断某些错误和崩溃变得更加困难。您应该只在被要求这么做或知道自己再做什么时禁用它。",
+   "sodium.options.use_block_face_culling.name": "启用方块面剔除",
+-  "sodium.options.use_block_face_culling.tooltip": "启用后，只有面向相机的方块的面才会被提交进行渲染。这可以在渲染过程的早期消除大量方块面，从而节省GPU上的内存带宽和时间。一些资源包可能会与此项冲突，因此如果您在方块中看到空洞，请尝试禁用它。"
++  "sodium.options.use_block_face_culling.tooltip": "启用后，只有面向相机的方块的面才会被提交进行渲染。这可以在渲染过程的早期消除大量方块面，从而节省GPU上的内存带宽和时间。一些资源包可能会与此项冲突，因此如果您在方块中看到空洞，请尝试禁用它。",
++  "sodium.options.enable_memory_tracing.name": "启用内存跟踪",
++  "sodium.options.enable_memory_tracing.tooltip": "调试功能。启用后，堆栈跟踪将与内存分配一起收集，以帮助在检测到内存泄漏时改进诊断信息。"
+ }
+\ No newline at end of file
+-- 
+2.31.1
+

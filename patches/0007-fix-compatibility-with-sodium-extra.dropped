@@ -1,0 +1,139 @@
+From 45ae3b32575c6d4435bd7b8de90b2bb6c2901565 Mon Sep 17 00:00:00 2001
+From: MATRIX-feather <midnightcarnival@outlook.com>
+Date: Mon, 5 Jul 2021 01:06:18 +0800
+Subject: [PATCH] =?UTF-8?q?fix:=20=E4=BF=AE=E5=A4=8D=E5=85=BC=E5=AE=B9?=
+ =?UTF-8?q?=E6=80=A7?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .../client/gui/options/OptionImpact.java      |  5 +++++
+ .../sodium/client/gui/options/OptionImpl.java | 10 +++++++++
+ .../sodium/client/gui/options/OptionPage.java | 21 ++++++++++++++++++-
+ .../client/gui/widgets/FlatButtonWidget.java  |  7 +++++++
+ src/main/resources/fabric.mod.json            |  3 +--
+ 5 files changed, 43 insertions(+), 3 deletions(-)
+
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionImpact.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionImpact.java
+index a58df2d..d0089a5 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionImpact.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionImpact.java
+@@ -21,4 +21,9 @@ public enum OptionImpact implements TextProvider {
+     public Text getLocalizedName() {
+         return this.text;
+     }
++
++    public String toDisplayString()
++    {
++        return getLocalizedName().getString();
++    }
+ }
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionImpl.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionImpl.java
+index 72905dd..c9178f9 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionImpl.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionImpl.java
+@@ -5,6 +5,8 @@ import me.jellysquid.mods.sodium.client.gui.options.binding.OptionBinding;
+ import me.jellysquid.mods.sodium.client.gui.options.control.Control;
+ import me.jellysquid.mods.sodium.client.gui.options.storage.OptionStorage;
+ import net.minecraft.text.Text;
++import net.minecraft.text.TranslatableText;
++
+ import org.apache.commons.lang3.Validate;
+ 
+ import java.util.Collection;
+@@ -139,6 +141,10 @@ public class OptionImpl<S, T> implements Option<T> {
+             return this;
+         }
+ 
++        public Builder<S, T> setName(String name) {
++            return setName(new TranslatableText(name));
++        }
++
+         public Builder<S, T> setTooltip(Text tooltip) {
+             Validate.notNull(tooltip, "Argument must not be null");
+ 
+@@ -147,6 +153,10 @@ public class OptionImpl<S, T> implements Option<T> {
+             return this;
+         }
+ 
++        public Builder<S, T> setTooltip(String tooltip) {
++            return setTooltip(new TranslatableText(tooltip));
++        }
++
+         public Builder<S, T> setBinding(BiConsumer<S, T> setter, Function<S, T> getter) {
+             Validate.notNull(setter, "Setter must not be null");
+             Validate.notNull(getter, "Getter must not be null");
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionPage.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionPage.java
+index 2aa185e..6f2604b 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionPage.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/options/OptionPage.java
+@@ -2,6 +2,7 @@ package me.jellysquid.mods.sodium.client.gui.options;
+ 
+ import com.google.common.collect.ImmutableList;
+ import net.minecraft.text.Text;
++import net.minecraft.text.TranslatableText;
+ 
+ public class OptionPage {
+     private final Text name;
+@@ -21,6 +22,19 @@ public class OptionPage {
+         this.options = builder.build();
+     }
+ 
++    public OptionPage(String name, ImmutableList<OptionGroup> groups) {
++        this.name = new TranslatableText(name);
++        this.groups = groups;
++
++        ImmutableList.Builder<Option<?>> builder = ImmutableList.builder();
++
++        for (OptionGroup group : groups) {
++            builder.addAll(group.getOptions());
++        }
++
++        this.options = builder.build();
++    }
++
+     public ImmutableList<OptionGroup> getGroups() {
+         return this.groups;
+     }
+@@ -29,8 +43,13 @@ public class OptionPage {
+         return this.options;
+     }
+ 
+-    public Text getName() {
++    public Text getTextName() {
+         return this.name;
+     }
+ 
++    public String getName()
++    {
++        return this.name.getString();
++    }
++
+ }
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/FlatButtonWidget.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/FlatButtonWidget.java
+index 0596bf7..aed895a 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/FlatButtonWidget.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/FlatButtonWidget.java
+@@ -4,5 +4,6 @@ import me.jellysquid.mods.sodium.client.util.Dim2i;
+ import net.minecraft.client.util.math.MatrixStack;
+ import net.minecraft.text.Text;
++import net.minecraft.text.TranslatableText;
+ 
+ public class FlatButtonWidget extends AbstractWidget {
+     private final Dim2i dim;
+@@ -20,6 +21,12 @@ public class FlatButtonWidget extends AbstractWidget implements Drawable {
+         this.action = action;
+     }
+ 
++    public FlatButtonWidget(Dim2i dim, String label, Runnable action) {
++        this.dim = dim;
++        this.label = new TranslatableText(label);
++        this.action = action;
++    }
++
+     @Override
+     public void render(MatrixStack matrixStack, int mouseX, int mouseY, float delta) {
+         if (!this.visible) {
+
+
