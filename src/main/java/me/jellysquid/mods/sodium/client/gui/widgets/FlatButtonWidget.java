@@ -3,7 +3,6 @@ package me.jellysquid.mods.sodium.client.gui.widgets;
 import me.jellysquid.mods.sodium.client.util.Dim2i;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.text.Text;
-import net.minecraft.text.TranslatableText;
 
 public class FlatButtonWidget extends AbstractWidget {
     private final Dim2i dim;
@@ -17,12 +16,6 @@ public class FlatButtonWidget extends AbstractWidget {
     public FlatButtonWidget(Dim2i dim, Text label, Runnable action) {
         this.dim = dim;
         this.label = label;
-        this.action = action;
-    }
-
-    public FlatButtonWidget(Dim2i dim, String label, Runnable action) {
-        this.dim = dim;
-        this.label = new TranslatableText(label);
         this.action = action;
     }
 

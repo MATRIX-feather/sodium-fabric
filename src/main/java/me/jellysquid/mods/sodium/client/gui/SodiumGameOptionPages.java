@@ -153,7 +153,7 @@ public class SodiumGameOptionPages {
                 .add(OptionImpl.createBuilder(SupportedGraphicsMode.class, vanillaOpts)
                         .setName(new TranslatableText("options.graphics"))
                         .setTooltip(new TranslatableText("sodium.options.graphics_quality.tooltip"))
-                        .setControl(option -> new CyclingControl<>(option, SupportedGraphicsMode.class, new Text[] { new TranslatableText("options.graphics.fast"), new TranslatableText("options.graphics.fancy")/*, new TranslatableText("options.graphics.fabulous")*/ }))
+                        .setControl(option -> new CyclingControl<>(option, SupportedGraphicsMode.class, new Text[] { new TranslatableText("options.graphics.fast"), new TranslatableText("options.graphics.fancy")/*, new TranslatableText("options.graphics.fabulous") */}))
                         .setBinding(
                                 (opts, value) -> opts.graphicsMode = value.toVanilla(),
                                 opts -> SupportedGraphicsMode.fromVanilla(opts.graphicsMode))
@@ -299,9 +299,8 @@ public class SodiumGameOptionPages {
                         .build()
                 )
                 .add(OptionImpl.createBuilder(boolean.class, sodiumOpts)
-                        .setName("Enable Memory Tracing")
-                        .setTooltip("Debugging feature. If enabled, stack traces will be collected alongside memory allocations to help " +
-                                "improve diagnostic information when memory leaks are detected.")
+                        .setName(new TranslatableText("sodium.options.enable_memory_tracing.name"))
+                        .setTooltip(new TranslatableText("sodium.options.enable_memory_tracing.tooltip"))
                         .setControl(TickBoxControl::new)
                         .setImpact(OptionImpact.LOW)
                         .setBinding((opts, value) -> opts.advanced.enableMemoryTracing = value, opts -> opts.advanced.enableMemoryTracing)

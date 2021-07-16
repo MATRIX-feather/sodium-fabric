@@ -20,9 +20,4 @@ public enum OptionImpact implements TextProvider {
     public Text getLocalizedName() {
         return this.text;
     }
-
-    public String toDisplayString()
-    {
-        return getLocalizedName().getString();
-    }
 }

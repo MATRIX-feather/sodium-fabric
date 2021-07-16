@@ -14,6 +14,7 @@ import net.minecraft.client.gui.screen.option.VideoOptionsScreen;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.text.LiteralText;
 import net.minecraft.text.OrderedText;
+import net.minecraft.text.Text;
 import net.minecraft.text.TranslatableText;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Language;
@@ -132,7 +133,7 @@ public class SodiumOptionsGUI extends Screen {
             this.addDrawableChild(button);
         }
 
-        String shaderPacks = new TranslatableText("options.iris.shaderPackSelection").getString();
+        Text shaderPacks = new TranslatableText("options.iris.shaderPackSelection");
         int shaderWidth = 12 + this.textRenderer.getWidth(shaderPacks);
         FlatButtonWidget irisButton = new FlatButtonWidget(new Dim2i(x, y, shaderWidth, 18), shaderPacks, () -> client.openScreen(new ShaderPackScreen(this)));
 

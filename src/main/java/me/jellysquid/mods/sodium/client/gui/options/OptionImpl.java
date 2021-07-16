@@ -141,10 +141,6 @@ public class OptionImpl<S, T> implements Option<T> {
             return this;
         }
 
-        public Builder<S, T> setName(String name) {
-            return setName(new TranslatableText(name));
-        }
-
         public Builder<S, T> setTooltip(Text tooltip) {
             Validate.notNull(tooltip, "Argument must not be null");
 
