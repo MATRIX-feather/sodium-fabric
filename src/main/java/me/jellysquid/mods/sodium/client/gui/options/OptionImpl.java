@@ -5,8 +5,6 @@ import me.jellysquid.mods.sodium.client.gui.options.binding.OptionBinding;
 import me.jellysquid.mods.sodium.client.gui.options.control.Control;
 import me.jellysquid.mods.sodium.client.gui.options.storage.OptionStorage;
 import net.minecraft.text.Text;
-import net.minecraft.text.TranslatableText;
-
 import org.apache.commons.lang3.Validate;
 
 import java.util.Collection;
@@ -141,20 +139,12 @@ public class OptionImpl<S, T> implements Option<T> {
             return this;
         }
 
-        public Builder<S, T> setName(String name) {
-            return setName(new TranslatableText(name));
-        }
-
         public Builder<S, T> setTooltip(Text tooltip) {
             Validate.notNull(tooltip, "Argument must not be null");
 
             this.tooltip = tooltip;
 
             return this;
-        }
-
-        public Builder<S, T> setTooltip(String tooltip) {
-            return setTooltip(new TranslatableText(tooltip));
         }
 
         public Builder<S, T> setBinding(BiConsumer<S, T> setter, Function<S, T> getter) {

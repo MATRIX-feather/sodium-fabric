@@ -115,13 +115,12 @@ diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/FlatButt
 index 0596bf7..aed895a 100644
 --- a/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/FlatButtonWidget.java
 +++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/widgets/FlatButtonWidget.java
-@@ -4,6 +4,7 @@ import me.jellysquid.mods.sodium.client.util.Dim2i;
- import net.minecraft.client.gui.Drawable;
+@@ -4,5 +4,6 @@ import me.jellysquid.mods.sodium.client.util.Dim2i;
  import net.minecraft.client.util.math.MatrixStack;
  import net.minecraft.text.Text;
 +import net.minecraft.text.TranslatableText;
  
- public class FlatButtonWidget extends AbstractWidget implements Drawable {
+ public class FlatButtonWidget extends AbstractWidget {
      private final Dim2i dim;
 @@ -20,6 +21,12 @@ public class FlatButtonWidget extends AbstractWidget implements Drawable {
          this.action = action;
