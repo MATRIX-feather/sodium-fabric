@@ -217,7 +217,7 @@ public class RenderSectionManager implements ChunkStatusListener {
     }
 
     private void schedulePendingUpdates(RenderSection section) {
-        if (section.getPendingUpdate() == null || !this.adjacencyMap.hasNeighbors(section.getChunkX(), section.getChunkZ())) {
+        if (ShadowRenderingState.areShadowsCurrentlyBeingRendered() || section.getPendingUpdate() == null || !this.adjacencyMap.hasNeighbors(section.getChunkX(), section.getChunkZ())) {
             return;
         }
 

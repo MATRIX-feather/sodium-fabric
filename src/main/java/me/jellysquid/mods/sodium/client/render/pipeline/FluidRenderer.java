@@ -85,7 +85,7 @@ public class FluidRenderer {
             }
         }
 
-        BlockPos pos = this.scratchPos.set(x, y, z);
+        BlockPos pos = this.scratchPos.set(x + dir.getOffsetX(), y + dir.getOffsetY(), z + dir.getOffsetZ());
         return !world.getFluidState(pos).getFluid().matchesType(fluid);
     }
 
@@ -121,13 +121,13 @@ public class FluidRenderer {
 
         this.separateAo = BlockRenderingSettings.INSTANCE.shouldUseSeparateAo();
 
-        boolean sfUp = this.isFluidExposed(world, posX, posY + 1, posZ, Direction.UP, fluid);
-        boolean sfDown = this.isFluidExposed(world, posX, posY - 1, posZ, Direction.DOWN, fluid) &&
+        boolean sfUp = this.isFluidExposed(world, posX, posY, posZ, Direction.UP, fluid);
+        boolean sfDown = this.isFluidExposed(world, posX, posY, posZ, Direction.DOWN, fluid) &&
                 this.isSideExposed(world, posX, posY, posZ, Direction.DOWN, 0.8888889F);
-        boolean sfNorth = this.isFluidExposed(world, posX, posY, posZ - 1, Direction.NORTH, fluid);
-        boolean sfSouth = this.isFluidExposed(world, posX, posY, posZ + 1, Direction.SOUTH, fluid);
-        boolean sfWest = this.isFluidExposed(world, posX - 1, posY, posZ, Direction.WEST, fluid);
-        boolean sfEast = this.isFluidExposed(world, posX + 1, posY, posZ, Direction.EAST, fluid);
+        boolean sfNorth = this.isFluidExposed(world, posX, posY, posZ, Direction.NORTH, fluid);
+        boolean sfSouth = this.isFluidExposed(world, posX, posY, posZ, Direction.SOUTH, fluid);
+        boolean sfWest = this.isFluidExposed(world, posX, posY, posZ, Direction.WEST, fluid);
+        boolean sfEast = this.isFluidExposed(world, posX, posY, posZ, Direction.EAST, fluid);
 
         if (!sfUp && !sfDown && !sfEast && !sfWest && !sfNorth && !sfSouth) {
             return false;
