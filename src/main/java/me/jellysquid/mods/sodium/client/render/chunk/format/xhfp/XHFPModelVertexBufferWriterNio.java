@@ -86,9 +86,9 @@ public class XHFPModelVertexBufferWriterNio extends VertexBufferWriterNio implem
         // NB: We don't set midTexCoord, normal, and tangent here, they will be filled in later.
         // block ID
         buffer.putShort(i + 32, materialId);
-        buffer.putShort(i + 36, renderType);
+        buffer.putShort(i + 34, renderType);
+        buffer.putShort(i + 36, (short) 0);
         buffer.putShort(i + 38, (short) 0);
-        buffer.putShort(i + 40, (short) 0);
 
         if (vertexCount == 4) {
             // TODO: Consider applying similar vertex coordinate transformations as the normal HFP texture coordinates

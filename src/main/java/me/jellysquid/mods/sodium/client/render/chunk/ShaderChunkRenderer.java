@@ -227,6 +227,7 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
     protected void end() {
         this.activeProgram.unbind();
         this.activeProgram = null;
+        ProgramUniforms.clearActiveUniforms();
 
         // TODO: Bind the framebuffer to whatever fallback is specified by SodiumTerrainPipeline.
         MinecraftClient.getInstance().getFramebuffer().beginWrite(false);
