@@ -1,0 +1,66 @@
+From c4005166d1dddc585c8141365a709b2dcd5f362a Mon Sep 17 00:00:00 2001
+From: MATRIX-feather <midnightcarnival@outlook.com>
+Date: Tue, 3 Aug 2021 02:37:23 +0800
+Subject: [PATCH] =?UTF-8?q?misc:=20=E6=94=AF=E6=8C=81=E5=88=87=E6=8D=A2?=
+ =?UTF-8?q?=E6=9E=81=E4=BD=B3=E5=9B=BE=E5=83=8F=E8=B4=A8=E9=87=8F(?=
+ =?UTF-8?q?=E5=AE=9E=E7=8E=B0IrisShaders/sodium-fabric#15)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .../client/gui/SodiumGameOptionPages.java     | 29 ++++++++++++-------
+ 1 file changed, 19 insertions(+), 10 deletions(-)
+
+diff --git a/src/main/java/me/jellysquid/mods/sodium/client/gui/SodiumGameOptionPages.java b/src/main/java/me/jellysquid/mods/sodium/client/gui/SodiumGameOptionPages.java
+index 09d6bae..ff2a29b 100644
+--- a/src/main/java/me/jellysquid/mods/sodium/client/gui/SodiumGameOptionPages.java
++++ b/src/main/java/me/jellysquid/mods/sodium/client/gui/SodiumGameOptionPages.java
+@@ -1,6 +1,8 @@
+ package me.jellysquid.mods.sodium.client.gui;
+ 
+ import com.google.common.collect.ImmutableList;
++import com.mojang.blaze3d.platform.GlStateManager;
++import net.coderbot.iris.Iris;
+ import me.jellysquid.mods.sodium.client.gui.options.*;
+ import me.jellysquid.mods.sodium.client.gui.options.binding.compat.VanillaBooleanOptionBinding;
+ import me.jellysquid.mods.sodium.client.gui.options.control.ControlValueFormatter;
+@@ -149,18 +151,25 @@ public class SodiumGameOptionPages {
+     public static OptionPage quality() {
+         List<OptionGroup> groups = new ArrayList<>();
+ 
+-        groups.add(OptionGroup.createBuilder()
+-                .add(OptionImpl.createBuilder(SupportedGraphicsMode.class, vanillaOpts)
++        OptionImpl.Builder graphicsQuality;
++        if(!Iris.getIrisConfig().areShadersEnabled()) {
++            graphicsQuality = OptionImpl.createBuilder(GraphicsMode.class, vanillaOpts).setControl(option -> new CyclingControl<>(option, GraphicsMode.class, new Text[] { new TranslatableText("options.graphics.fast"), new TranslatableText("options.graphics.fancy"), new TranslatableText("options.graphics.fabulous") }))
++                    .setBinding(
++                            (opts, value) -> opts.graphicsMode = value,
++                            opts -> opts.graphicsMode);
++                            } else {
++            graphicsQuality = OptionImpl.createBuilder(SupportedGraphicsMode.class, vanillaOpts).setControl(option -> new CyclingControl<>(option, SupportedGraphicsMode.class, new Text[] { new TranslatableText("options.graphics.fast"), new TranslatableText("options.graphics.fancy") }))
++                    .setBinding(
++                            (opts, value) -> opts.graphicsMode = value.toVanilla(),
++                            opts -> SupportedGraphicsMode.fromVanilla(opts.graphicsMode));
++        }
++
++        groups.add(OptionGroup.createBuilder().add(graphicsQuality
+                         .setName(new TranslatableText("options.graphics"))
+                         .setTooltip(new TranslatableText("sodium.options.graphics_quality.tooltip"))
+-                        .setControl(option -> new CyclingControl<>(option, SupportedGraphicsMode.class, new Text[] { new TranslatableText("options.graphics.fast"), new TranslatableText("options.graphics.fancy")/*, new TranslatableText("options.graphics.fabulous") */}))
+-                        .setBinding(
+-                                (opts, value) -> opts.graphicsMode = value.toVanilla(),
+-                                opts -> SupportedGraphicsMode.fromVanilla(opts.graphicsMode))
+-                        .setImpact(OptionImpact.HIGH)
+-                        .setFlags(OptionFlag.REQUIRES_RENDERER_RELOAD)
+-                        .build())
+-                .build());
++                .setImpact(OptionImpact.HIGH)
++                .setFlags(OptionFlag.REQUIRES_RENDERER_RELOAD)
++                .build()).build());
+ 
+         groups.add(OptionGroup.createBuilder()
+                 .add(OptionImpl.createBuilder(SodiumGameOptions.GraphicsQuality.class, sodiumOpts)
+-- 
+2.31.1
+

@@ -1,6 +1,8 @@
 package me.jellysquid.mods.sodium.client.gui;
 
 import com.google.common.collect.ImmutableList;
+import com.mojang.blaze3d.platform.GlStateManager;
+import net.coderbot.iris.Iris;
 import me.jellysquid.mods.sodium.client.gui.options.*;
 import me.jellysquid.mods.sodium.client.gui.options.binding.compat.VanillaBooleanOptionBinding;
 import me.jellysquid.mods.sodium.client.gui.options.control.ControlValueFormatter;
@@ -149,18 +151,25 @@ public class SodiumGameOptionPages {
     public static OptionPage quality() {
         List<OptionGroup> groups = new ArrayList<>();
 
-        groups.add(OptionGroup.createBuilder()
-                .add(OptionImpl.createBuilder(SupportedGraphicsMode.class, vanillaOpts)
+        OptionImpl.Builder graphicsQuality;
+        if(!Iris.getIrisConfig().areShadersEnabled()) {
+            graphicsQuality = OptionImpl.createBuilder(GraphicsMode.class, vanillaOpts).setControl(option -> new CyclingControl<>(option, GraphicsMode.class, new Text[] { new TranslatableText("options.graphics.fast"), new TranslatableText("options.graphics.fancy"), new TranslatableText("options.graphics.fabulous") }))
+                    .setBinding(
+                            (opts, value) -> opts.graphicsMode = value,
+                            opts -> opts.graphicsMode);
+                            } else {
+            graphicsQuality = OptionImpl.createBuilder(SupportedGraphicsMode.class, vanillaOpts).setControl(option -> new CyclingControl<>(option, SupportedGraphicsMode.class, new Text[] { new TranslatableText("options.graphics.fast"), new TranslatableText("options.graphics.fancy") }))
+                    .setBinding(
+                            (opts, value) -> opts.graphicsMode = value.toVanilla(),
+                            opts -> SupportedGraphicsMode.fromVanilla(opts.graphicsMode));
+        }
+
+        groups.add(OptionGroup.createBuilder().add(graphicsQuality
                         .setName(new TranslatableText("options.graphics"))
                         .setTooltip(new TranslatableText("sodium.options.graphics_quality.tooltip"))
-                        .setControl(option -> new CyclingControl<>(option, SupportedGraphicsMode.class, new Text[] { new TranslatableText("options.graphics.fast"), new TranslatableText("options.graphics.fancy")/*, new TranslatableText("options.graphics.fabulous") */}))
-                        .setBinding(
-                                (opts, value) -> opts.graphicsMode = value.toVanilla(),
-                                opts -> SupportedGraphicsMode.fromVanilla(opts.graphicsMode))
-                        .setImpact(OptionImpact.HIGH)
-                        .setFlags(OptionFlag.REQUIRES_RENDERER_RELOAD)
-                        .build())
-                .build());
+                .setImpact(OptionImpact.HIGH)
+                .setFlags(OptionFlag.REQUIRES_RENDERER_RELOAD)
+                .build()).build());
 
         groups.add(OptionGroup.createBuilder()
                 .add(OptionImpl.createBuilder(SodiumGameOptions.GraphicsQuality.class, sodiumOpts)
