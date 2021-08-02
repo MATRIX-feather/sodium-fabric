@@ -100,6 +100,31 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
                 new Identifier("sodium", getShaderName(pass) + ".vsh"), constants);
     }
 
+    private GlShader createGeometryShader(RenderDevice device, boolean isShadowPass, BlockRenderPass pass,
+                                        SodiumTerrainPipeline pipeline, ShaderConstants constants) {
+        if (pipeline != null) {
+            Optional<String> irisGeometryShader;
+            String name;
+
+            if (isShadowPass) {
+                irisGeometryShader = pipeline.getShadowGeometryShaderSource();
+                name = "shadow_terrain";
+            } else {
+                irisGeometryShader = pass.isTranslucent() ? pipeline.getTranslucentGeometryShaderSource() : pipeline.getTerrainGeometryShaderSource();
+                name = pass.isTranslucent() ? "terrain_translucent" : "terrain";
+            }
+
+            String fullName = "patched_" + name + "_for_sodium.gsh";
+
+            if (irisGeometryShader.isPresent()) {
+                return new GlShader(ShaderType.GEOMETRY, new Identifier("iris", fullName),
+                        irisGeometryShader.get());
+            }
+        }
+
+        return null;
+    }
+
     private GlShader createFragmentShader(RenderDevice device, boolean isShadowPass, BlockRenderPass pass,
                                           SodiumTerrainPipeline pipeline, ShaderConstants constants) {
         if (pipeline != null) {
@@ -142,11 +167,13 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
         ShaderConstants constants = options.constants();
 
         GlShader vertShader = createVertexShader(device, isShadowPass, pass, pipeline, constants);
+        GlShader geomShader = createGeometryShader(device, isShadowPass, pass, pipeline, constants);
         GlShader fragShader = createFragmentShader(device, isShadowPass, pass, pipeline, constants);
 
         try {
             return GlProgram.builder(new Identifier("sodium", "chunk_shader"))
                     .attachShader(vertShader)
+                    .attachShader(geomShader)
                     .attachShader(fragShader)
                     .bindAttribute("a_Pos", ChunkShaderBindingPoints.ATTRIBUTE_POSITION_ID)
                     .bindAttribute("a_Color", ChunkShaderBindingPoints.ATTRIBUTE_COLOR)
@@ -176,6 +203,9 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
                     });
         } finally {
             vertShader.delete();
+            if (geomShader != null) {
+                geomShader.delete();
+            }
             fragShader.delete();
         }
     }

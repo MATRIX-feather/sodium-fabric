@@ -79,7 +79,9 @@ public abstract class GlProgram extends GlObject {
         }
 
         public Builder attachShader(GlShader shader) {
-            GL20C.glAttachShader(this.program, shader.handle());
+            if (shader != null) {
+                GL20C.glAttachShader(this.program, shader.handle());
+            }
 
             return this;
         }
