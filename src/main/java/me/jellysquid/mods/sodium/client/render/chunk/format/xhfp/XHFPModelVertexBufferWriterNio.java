@@ -92,8 +92,18 @@ public class XHFPModelVertexBufferWriterNio extends VertexBufferWriterNio implem
 
         if (vertexCount == 4) {
             // TODO: Consider applying similar vertex coordinate transformations as the normal HFP texture coordinates
-            short midU = (short)(65536.0F * (uSum * 0.25f));
-            short midV = (short)(65536.0F * (vSum * 0.25f));
+
+            // NB: Be careful with the math here! A previous bug was caused by midU going negative as a short, which
+            // was sign-extended into midTexCoord, causing midV to have garbage (likely NaN data). If you're touching
+            // this code, be aware of that, and don't introduce those kinds of bugs!
+            //
+            // Also note that OpenGL takes shorts in the range of [0, 65535] and transforms them linearly to [0.0, 1.0],
+            // so multiply by 65535, not 65536.
+            //
+            // TODO: Does this introduce precision issues? Do we need to fall back to floats here? This might break
+            // with high resolution texture packs.
+            int midU = (int)(65535.0F * Math.min(uSum * 0.25f, 1.0f)) & 0xFFFF;
+            int midV = (int)(65535.0F * Math.min(vSum * 0.25f, 1.0f)) & 0xFFFF;
             int midTexCoord = (midV << 16) | midU;
 
             buffer.putInt(i + 20, midTexCoord);

@@ -9,7 +9,7 @@ import me.jellysquid.mods.sodium.client.model.vertex.type.ChunkVertexType;
 import me.jellysquid.mods.sodium.client.render.chunk.format.ChunkMeshAttribute;
 import me.jellysquid.mods.sodium.client.render.chunk.passes.BlockRenderPass;
 import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkFogMode;
-import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkProgram;
+import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkShaderInterface;
 import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkShaderBindingPoints;
 import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkShaderOptions;
 import net.coderbot.iris.Iris;
@@ -27,15 +27,15 @@ import java.util.Map;
 import java.util.Optional;
 
 public abstract class ShaderChunkRenderer implements ChunkRenderer {
-    private final Map<BlockRenderPass, Map<ChunkShaderOptions, ChunkProgram>> gbufferPrograms = new Object2ObjectOpenHashMap<>();
-    private final Map<BlockRenderPass, Map<ChunkShaderOptions, ChunkProgram>> shadowPrograms = new Object2ObjectOpenHashMap<>();
+    private final Map<ChunkShaderOptions, GlProgram<ChunkShaderInterface>> gbufferPrograms = new Object2ObjectOpenHashMap<>();
+    private final Map<ChunkShaderOptions, GlProgram<ChunkShaderInterface>> shadowPrograms = new Object2ObjectOpenHashMap<>();
 
     protected final ChunkVertexType vertexType;
     protected final GlVertexFormat<ChunkMeshAttribute> vertexFormat;
 
     protected final RenderDevice device;
 
-    protected ChunkProgram activeProgram;
+    protected GlProgram<ChunkShaderInterface> activeProgram;
 
     public ShaderChunkRenderer(RenderDevice device, ChunkVertexType vertexType) {
         this.device = device;
@@ -43,36 +43,66 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
         this.vertexFormat = vertexType.getCustomVertexFormat();
     }
 
-    // TODO: Generalize shader options
-    protected ChunkProgram compileProgram(boolean isShadowPass, BlockRenderPass pass, ChunkShaderOptions options,
-                                          SodiumTerrainPipeline pipeline) {
-        Map<BlockRenderPass, Map<ChunkShaderOptions, ChunkProgram>> programMap =
+    protected GlProgram<ChunkShaderInterface> compileProgram(boolean isShadowPass, ChunkShaderOptions options,  SodiumTerrainPipeline pipeline) {
+        Map<ChunkShaderOptions, GlProgram<ChunkShaderInterface>> programMap =
                 isShadowPass ? shadowPrograms : gbufferPrograms;
 
-        Map<ChunkShaderOptions, ChunkProgram> programs = programMap.get(pass);
-
-        if (programs == null) {
-            programMap.put(pass, programs = new Object2ObjectOpenHashMap<>());
-        }
-
-        ChunkProgram program = programs.get(options);
+        GlProgram<ChunkShaderInterface> program = programMap.get(options);
 
         if (program == null) {
-            programs.put(options, program = this.createShader(this.device, isShadowPass, pass, options, pipeline));
+            programMap.put(options, program = this.createShader("blocks/block_layer_opaque", isShadowPass, pipeline, options));
         }
 
         return program;
     }
 
-    // TODO: Define these in the render pass itself
-    protected String getShaderName(BlockRenderPass pass) {
-        return switch (pass) {
-            case CUTOUT -> "blocks/block_layer_cutout";
-            case CUTOUT_MIPPED -> "blocks/block_layer_cutout_mipped";
-            case TRANSLUCENT, TRIPWIRE -> "blocks/block_layer_translucent";
-            default -> "blocks/block_layer_solid";
-        };
+    private GlProgram<ChunkShaderInterface> createShader(String path, boolean isShadowPass, SodiumTerrainPipeline pipeline, ChunkShaderOptions options) {
+        ShaderConstants constants = options.constants();
+
+        GlShader vertShader = createVertexShader(device, isShadowPass, options.pass(), pipeline, constants);
+        GlShader geomShader = createGeometryShader(device, isShadowPass, options.pass(), pipeline, constants);
+        GlShader fragShader = createFragmentShader(device, isShadowPass, options.pass(), pipeline, constants);
+
+        try {
+            return GlProgram.builder(new Identifier("sodium", "chunk_shader"))
+                    .attachShader(vertShader)
+                    .attachShader(geomShader)
+                    .attachShader(fragShader)
+                    .bindAttribute("a_Pos", ChunkShaderBindingPoints.ATTRIBUTE_POSITION_ID)
+                    .bindAttribute("a_Color", ChunkShaderBindingPoints.ATTRIBUTE_COLOR)
+                    .bindAttribute("a_TexCoord", ChunkShaderBindingPoints.ATTRIBUTE_BLOCK_TEXTURE)
+                    .bindAttribute("a_LightCoord", ChunkShaderBindingPoints.ATTRIBUTE_LIGHT_TEXTURE)
+                    .bindAttribute("mc_Entity", ChunkShaderBindingPoints.BLOCK_ID)
+                    .bindAttribute("mc_midTexCoord", ChunkShaderBindingPoints.MID_TEX_COORD)
+                    .bindAttribute("at_tangent", ChunkShaderBindingPoints.TANGENT)
+                    .bindAttribute("a_Normal", ChunkShaderBindingPoints.NORMAL)
+                    .bindFragmentData("fragColor", ChunkShaderBindingPoints.FRAG_COLOR)
+                    .bindFragmentData("iris_FragData", ChunkShaderBindingPoints.FRAG_COLOR)
+                    .link((shader) -> {
+                        ProgramUniforms uniforms = null;
+                        ProgramSamplers samplers = null;
+
+                        if (pipeline != null) {
+                            uniforms = pipeline.initUniforms(shader.handle());
+
+                            if (isShadowPass) {
+                                samplers = pipeline.initShadowSamplers(shader.handle());
+                            } else {
+                                samplers = pipeline.initTerrainSamplers(shader.handle());
+                            }
+                        }
+
+                        return new ChunkShaderInterface(shader, options, uniforms, samplers);
+                    });
+        } finally {
+            vertShader.delete();
+            if (geomShader != null) {
+                geomShader.delete();
+            }
+            fragShader.delete();
+        }
     }
+
 
     private GlShader createVertexShader(RenderDevice device, boolean isShadowPass, BlockRenderPass pass,
                                         SodiumTerrainPipeline pipeline, ShaderConstants constants) {
@@ -97,11 +127,11 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
         }
 
         return ShaderLoader.loadShader(ShaderType.VERTEX,
-                new Identifier("sodium", getShaderName(pass) + ".vsh"), constants);
+                new Identifier("sodium", "blocks/block_layer_opaque" + ".vsh"), constants);
     }
 
     private GlShader createGeometryShader(RenderDevice device, boolean isShadowPass, BlockRenderPass pass,
-                                        SodiumTerrainPipeline pipeline, ShaderConstants constants) {
+                                          SodiumTerrainPipeline pipeline, ShaderConstants constants) {
         if (pipeline != null) {
             Optional<String> irisGeometryShader;
             String name;
@@ -159,58 +189,10 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
         }
 
         return ShaderLoader.loadShader(ShaderType.FRAGMENT,
-                new Identifier("sodium", getShaderName(pass) + ".fsh"), constants);
+                new Identifier("sodium", "blocks/block_layer_opaque" + ".fsh"), constants);
     }
 
-    private ChunkProgram createShader(RenderDevice device, boolean isShadowPass, BlockRenderPass pass,
-                                      ChunkShaderOptions options, SodiumTerrainPipeline pipeline) {
-        ShaderConstants constants = options.constants();
-
-        GlShader vertShader = createVertexShader(device, isShadowPass, pass, pipeline, constants);
-        GlShader geomShader = createGeometryShader(device, isShadowPass, pass, pipeline, constants);
-        GlShader fragShader = createFragmentShader(device, isShadowPass, pass, pipeline, constants);
-
-        try {
-            return GlProgram.builder(new Identifier("sodium", "chunk_shader"))
-                    .attachShader(vertShader)
-                    .attachShader(geomShader)
-                    .attachShader(fragShader)
-                    .bindAttribute("a_Pos", ChunkShaderBindingPoints.ATTRIBUTE_POSITION_ID)
-                    .bindAttribute("a_Color", ChunkShaderBindingPoints.ATTRIBUTE_COLOR)
-                    .bindAttribute("a_TexCoord", ChunkShaderBindingPoints.ATTRIBUTE_BLOCK_TEXTURE)
-                    .bindAttribute("a_LightCoord", ChunkShaderBindingPoints.ATTRIBUTE_LIGHT_TEXTURE)
-                    .bindAttribute("mc_Entity", ChunkShaderBindingPoints.BLOCK_ID)
-                    .bindAttribute("mc_midTexCoord", ChunkShaderBindingPoints.MID_TEX_COORD)
-                    .bindAttribute("at_tangent", ChunkShaderBindingPoints.TANGENT)
-                    .bindAttribute("a_Normal", ChunkShaderBindingPoints.NORMAL)
-                    .bindFragmentData("fragColor", ChunkShaderBindingPoints.FRAG_COLOR)
-                    .bindFragmentData("iris_FragData", ChunkShaderBindingPoints.FRAG_COLOR)
-                    .build((handle) -> {
-                        ProgramUniforms uniforms = null;
-                        ProgramSamplers samplers = null;
-
-                        if (pipeline != null) {
-                            uniforms = pipeline.initUniforms(handle);
-
-                            if (isShadowPass) {
-                                samplers = pipeline.initShadowSamplers(handle);
-                            } else {
-                                samplers = pipeline.initTerrainSamplers(handle);
-                            }
-                        }
-
-                        return new ChunkProgram(device, handle, options, uniforms, samplers);
-                    });
-        } finally {
-            vertShader.delete();
-            if (geomShader != null) {
-                geomShader.delete();
-            }
-            fragShader.delete();
-        }
-    }
-
-    protected void begin(BlockRenderPass pass, MatrixStack matrixStack) {
+    protected void begin(BlockRenderPass pass) {
         if (Iris.getPipelineManager().isSodiumShaderReloadNeeded()) {
             deleteAllPrograms();
             Iris.getPipelineManager().clearSodiumShaderReloadNeeded();
@@ -225,11 +207,11 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
 
         boolean isShadowPass = ShadowRenderingState.areShadowsCurrentlyBeingRendered();
 
-        ChunkShaderOptions options = new ChunkShaderOptions(ChunkFogMode.SMOOTH);
+        ChunkShaderOptions options = new ChunkShaderOptions(ChunkFogMode.SMOOTH, pass);
 
-        this.activeProgram = this.compileProgram(isShadowPass, pass, options, sodiumTerrainPipeline);
+        this.activeProgram = this.compileProgram(isShadowPass, options, sodiumTerrainPipeline);
         this.activeProgram.bind();
-        this.activeProgram.setup(matrixStack, this.vertexType);
+        this.activeProgram.getInterface().setup(this.vertexType);
 
         if (isShadowPass) {
             // No back face culling during the shadow pass
@@ -263,10 +245,9 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
         MinecraftClient.getInstance().getFramebuffer().beginWrite(false);
     }
 
-    private void deletePrograms(Map<BlockRenderPass, Map<ChunkShaderOptions, ChunkProgram>> programs) {
+    private void deletePrograms(Map<ChunkShaderOptions, GlProgram<ChunkShaderInterface>> programs) {
         programs.values()
                 .stream()
-                .flatMap(i -> i.values().stream())
                 .forEach(GlProgram::delete);
         programs.clear();
     }
