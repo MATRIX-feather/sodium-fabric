@@ -2,6 +2,7 @@ package me.jellysquid.mods.sodium.client.render.chunk;
 
 import com.google.common.collect.Lists;
 import com.mojang.blaze3d.systems.RenderSystem;
+import me.jellysquid.mods.sodium.client.SodiumClientMod;
 import me.jellysquid.mods.sodium.client.gl.attribute.GlVertexAttributeBinding;
 import me.jellysquid.mods.sodium.client.gl.buffer.GlBufferUsage;
 import me.jellysquid.mods.sodium.client.gl.buffer.GlMutableBuffer;
@@ -14,6 +15,7 @@ import me.jellysquid.mods.sodium.client.gl.tessellation.GlTessellation;
 import me.jellysquid.mods.sodium.client.gl.tessellation.TessellationBinding;
 import me.jellysquid.mods.sodium.client.gl.util.ElementRange;
 import me.jellysquid.mods.sodium.client.gl.util.MultiDrawBatch;
+import me.jellysquid.mods.sodium.client.model.quad.ModelQuad;
 import me.jellysquid.mods.sodium.client.model.quad.properties.ModelQuadFacing;
 import me.jellysquid.mods.sodium.client.model.vertex.type.ChunkVertexType;
 import me.jellysquid.mods.sodium.client.render.chunk.data.ChunkRenderBounds;
@@ -22,6 +24,7 @@ import me.jellysquid.mods.sodium.client.render.chunk.passes.BlockRenderPass;
 import me.jellysquid.mods.sodium.client.render.chunk.region.RenderRegion;
 import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkShaderBindingPoints;
 import net.coderbot.iris.shadows.ShadowRenderingState;
+import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkShaderInterface;
 import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkShaderInterface;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.Matrix4f;
@@ -36,6 +39,7 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
     private final GlVertexAttributeBinding[] vertexAttributeBindings;
 
     private final GlMutableBuffer chunkInfoBuffer;
+    private final boolean isBlockFaceCullingEnabled = SodiumClientMod.options().advanced.useBlockFaceCulling;
 
     public RegionChunkRenderer(RenderDevice device, ChunkVertexType vertexType) {
         super(device, vertexType);
@@ -114,7 +118,7 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
 
             this.setModelMatrixUniforms(shader, matrixStack, region, camera);
 
-            GlTessellation tessellation = createTessellationForRegion(commandList, region.getArenas(pass));
+            GlTessellation tessellation = this.createTessellationForRegion(commandList, region.getArenas(), pass);
             executeDrawBatches(commandList, tessellation);
         }
 
@@ -138,40 +142,43 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
             long indexOffset = state.getIndexSegment()
                     .getOffset();
 
-            int baseVertex = (int) state.getVertexSegment()
-                    .getOffset();
+            int baseVertex = state.getVertexSegment()
+                    .getOffset() / this.vertexFormat.getStride();
 
             this.addDrawCall(state.getModelPart(ModelQuadFacing.UNASSIGNED), indexOffset, baseVertex);
 
-                // Iris: No block face culling during the shadow pass
+            // Iris: No block face culling during the shadow pass
+            if (this.isBlockFaceCullingEnabled && !ShadowRenderingState.areShadowsCurrentlyBeingRendered()) {
 
-                boolean dontCullFaces = ShadowRenderingState.areShadowsCurrentlyBeingRendered();
-
-
-                if (camera.posY > bounds.y1 || dontCullFaces) {
+                if (camera.posY > bounds.y1) {
                     this.addDrawCall(state.getModelPart(ModelQuadFacing.UP), indexOffset, baseVertex);
                 }
 
-                if (camera.posY < bounds.y2 || dontCullFaces) {
+                if (camera.posY < bounds.y2) {
                     this.addDrawCall(state.getModelPart(ModelQuadFacing.DOWN), indexOffset, baseVertex);
                 }
 
-                if (camera.posX > bounds.x1 || dontCullFaces) {
+                if (camera.posX > bounds.x1) {
                     this.addDrawCall(state.getModelPart(ModelQuadFacing.EAST), indexOffset, baseVertex);
                 }
 
-                if (camera.posX < bounds.x2 || dontCullFaces) {
+                if (camera.posX < bounds.x2) {
                     this.addDrawCall(state.getModelPart(ModelQuadFacing.WEST), indexOffset, baseVertex);
                 }
 
-                if (camera.posZ > bounds.z1 || dontCullFaces) {
+                if (camera.posZ > bounds.z1) {
                     this.addDrawCall(state.getModelPart(ModelQuadFacing.SOUTH), indexOffset, baseVertex);
                 }
 
-                if (camera.posZ < bounds.z2 || dontCullFaces) {
+                if (camera.posZ < bounds.z2) {
                     this.addDrawCall(state.getModelPart(ModelQuadFacing.NORTH), indexOffset, baseVertex);
                 }
+            } else {
+                for (ModelQuadFacing facing : ModelQuadFacing.DIRECTIONS) {
+                    this.addDrawCall(state.getModelPart(facing), indexOffset, baseVertex);
+                }
             }
+        }
 
         boolean nonEmpty = false;
 
@@ -184,11 +191,11 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
         return nonEmpty;
     }
 
-    private GlTessellation createTessellationForRegion(CommandList commandList, RenderRegion.RenderRegionArenas arenas) {
-        GlTessellation tessellation = arenas.getTessellation();
+    private GlTessellation createTessellationForRegion(CommandList commandList, RenderRegion.RenderRegionArenas arenas, BlockRenderPass pass) {
+        GlTessellation tessellation = arenas.getTessellation(pass);
 
         if (tessellation == null) {
-            arenas.setTessellation(tessellation = this.createRegionTessellation(commandList, arenas));
+            arenas.setTessellation(pass, tessellation = this.createRegionTessellation(commandList, arenas));
         }
 
         return tessellation;
@@ -233,8 +240,9 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
 
     private GlTessellation createRegionTessellation(CommandList commandList, RenderRegion.RenderRegionArenas arenas) {
         return commandList.createTessellation(GlPrimitiveType.TRIANGLES, new TessellationBinding[] {
-                new TessellationBinding(arenas.vertexBuffers.getBufferObject(), this.vertexAttributeBindings)
-        }, arenas.indexBuffers.getBufferObject());
+                TessellationBinding.forVertexBuffer(arenas.vertexBuffers.getBufferObject(), this.vertexAttributeBindings),
+                TessellationBinding.forElementBuffer(arenas.indexBuffers.getBufferObject())
+        });
     }
 
     @Override

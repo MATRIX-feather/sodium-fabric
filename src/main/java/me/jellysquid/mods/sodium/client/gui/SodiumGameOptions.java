@@ -3,9 +3,9 @@ package me.jellysquid.mods.sodium.client.gui;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import me.jellysquid.mods.sodium.client.SodiumClientMod;
 import me.jellysquid.mods.sodium.client.gui.options.TextProvider;
 import net.minecraft.client.option.GraphicsMode;
+import net.minecraft.text.LiteralText;
 import net.minecraft.text.Text;
 import net.minecraft.text.TranslatableText;
 
@@ -25,6 +25,8 @@ public class SodiumGameOptions {
     private Path configPath;
 
     public static class AdvancedSettings {
+        public ArenaMemoryAllocator arenaMemoryAllocator = null;
+
         public boolean animateOnlyVisibleTextures = true;
         public boolean useEntityCulling = true;
         public boolean useParticleCulling = true;
@@ -32,18 +34,38 @@ public class SodiumGameOptions {
         public boolean useBlockFaceCulling = true;
         public boolean allowDirectMemoryAccess = true;
         public boolean enableMemoryTracing = false;
+        public boolean useAdvancedStagingBuffers = true;
+
+        public int maxPreRenderedFrames = 3;
     }
 
     public static class QualitySettings {
-        public GraphicsQuality cloudQuality = GraphicsQuality.DEFAULT;
         public GraphicsQuality weatherQuality = GraphicsQuality.DEFAULT;
-
         public boolean enableVignette = true;
-        public boolean enableClouds = true;
     }
 
     public static class NotificationSettings {
         public boolean hideDonationButton = false;
+    }
+
+    public enum ArenaMemoryAllocator implements TextProvider {
+        ASYNC("Async"),
+        SWAP("Swap");
+
+        private final String name;
+
+        ArenaMemoryAllocator(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public Text getLocalizedName() {
+            return new LiteralText(this.name);
+        }
+
+        public String getName() {
+            return this.name;
+        }
     }
 
     public enum GraphicsQuality implements TextProvider {
@@ -87,6 +109,10 @@ public class SodiumGameOptions {
         }
 
         config.configPath = path;
+
+        if (config.advanced.arenaMemoryAllocator == null) {
+            config.advanced.arenaMemoryAllocator = ArenaMemoryAllocator.ASYNC;
+        }
 
         try {
             config.writeChanges();

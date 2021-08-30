@@ -151,7 +151,7 @@ public interface MultiDrawBatch {
 
         @Override
         public void add(long pointer, int count, int baseVertex) {
-            if (this.count >= this.capacity)  {
+            if (this.count >= this.capacity) {
                 throw new BufferUnderflowException();
             }
 
