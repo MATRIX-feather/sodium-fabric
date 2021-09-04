@@ -37,7 +37,7 @@ public class FlatButtonWidget extends AbstractWidget implements Drawable {
         this.drawString(matrixStack, this.label, this.dim.getCenterX() - (strWidth / 2), this.dim.getCenterY() - 4, textColor);
 
         if (this.enabled && this.selected) {
-            this.drawRect(this.dim.x(), this.dim.getLimitY() - 1, this.dim.getLimitX(), this.dim.getLimitY(), 0xFF94E4D3);
+            this.drawRect(this.dim.x(), this.dim.getLimitY() - 1, this.dim.getLimitX(), this.dim.getLimitY(), 0xFF8AB7EA);
         }
     }
 

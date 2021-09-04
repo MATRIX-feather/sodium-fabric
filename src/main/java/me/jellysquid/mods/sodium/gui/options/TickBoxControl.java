@@ -53,7 +53,7 @@ public class TickBoxControl implements Control<Boolean> {
             if (enabled) {
                 color = ticked ? 0xFF94E4D3 : 0xFFFFFFFF;
             } else {
-                color = 0xFFAAAAAA;
+                color = 0xFF8AB7EA;
             }
 
             if (ticked) {
