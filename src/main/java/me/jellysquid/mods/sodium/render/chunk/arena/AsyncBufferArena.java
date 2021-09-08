@@ -1,10 +1,8 @@
 package me.jellysquid.mods.sodium.render.chunk.arena;
 
 import me.jellysquid.mods.sodium.render.chunk.arena.staging.StagingBuffer;
-import me.jellysquid.mods.thingl.buffer.GlBuffer;
-import me.jellysquid.mods.thingl.buffer.GlBufferUsage;
-import me.jellysquid.mods.thingl.buffer.GlMutableBuffer;
-import me.jellysquid.mods.thingl.device.CommandList;
+import me.jellysquid.mods.thingl.buffer.*;
+import me.jellysquid.mods.thingl.device.RenderDevice;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -19,33 +17,34 @@ import java.util.stream.Stream;
 public class AsyncBufferArena implements GlBufferArena {
     static final boolean CHECK_ASSERTIONS = false;
 
-    private static final GlBufferUsage BUFFER_USAGE = GlBufferUsage.STATIC_DRAW;
+    private static final BufferUsage BUFFER_USAGE = BufferUsage.STATIC_DRAW;
 
     private final int resizeIncrement;
 
+    private final RenderDevice device;
     private final StagingBuffer stagingBuffer;
-    private GlMutableBuffer arenaBuffer;
+    private MutableBuffer arenaBuffer;
 
     private GlBufferSegment head;
 
     private int capacity;
     private int used;
 
-    public AsyncBufferArena(CommandList commands, int initialCapacity, StagingBuffer stagingBuffer) {
+    public AsyncBufferArena(RenderDevice device, int initialCapacity, StagingBuffer stagingBuffer) {
         this.resizeIncrement = initialCapacity / 16;
         this.capacity = initialCapacity;
 
         this.head = new GlBufferSegment(this, 0, initialCapacity);
         this.head.setFree(true);
 
-        this.arenaBuffer = commands.createMutableBuffer();
-
-        commands.allocateStorage(this.arenaBuffer, initialCapacity, BUFFER_USAGE);
+        this.device = device;
+        this.arenaBuffer = device.createMutableBuffer();
+        device.allocateStorage(this.arenaBuffer, initialCapacity, BUFFER_USAGE);
 
         this.stagingBuffer = stagingBuffer;
     }
 
-    private void resize(CommandList commandList, int newCapacity) {
+    private void resize(int newCapacity) {
         if (this.used > newCapacity) {
             throw new UnsupportedOperationException("New capacity must be larger than used size");
         }
@@ -57,7 +56,7 @@ public class AsyncBufferArena implements GlBufferArena {
         List<GlBufferSegment> usedSegments = this.getUsedSegments();
         List<PendingBufferCopyCommand> pendingCopies = this.buildTransferList(usedSegments, freeBytes);
 
-        this.transferSegments(commandList, pendingCopies, newCapacity);
+        this.transferSegments(pendingCopies, newCapacity);
 
         this.head = new GlBufferSegment(this, 0, freeBytes);
         this.head.setFree(true);
@@ -116,21 +115,20 @@ public class AsyncBufferArena implements GlBufferArena {
         return pendingCopies;
     }
 
-    private void transferSegments(CommandList commandList, Collection<PendingBufferCopyCommand> list, int capacity) {
-        GlMutableBuffer srcBufferObj = this.arenaBuffer;
-        GlMutableBuffer dstBufferObj = commandList.createMutableBuffer();
+    private void transferSegments(Collection<PendingBufferCopyCommand> list, int capacity) {
+        MutableBuffer srcBufferObj = this.arenaBuffer;
+        MutableBuffer dstBufferObj = this.device.createMutableBuffer();
 
-        commandList.allocateStorage(dstBufferObj, capacity, BUFFER_USAGE);
-
+        this.device.allocateStorage(dstBufferObj, capacity, BUFFER_USAGE);
 
         for (PendingBufferCopyCommand cmd : list) {
-            commandList.copyBufferSubData(srcBufferObj, dstBufferObj,
+            this.device.copyBufferSubData(srcBufferObj, dstBufferObj,
                     cmd.readOffset,
                     cmd.writeOffset,
                     cmd.length);
         }
 
-        commandList.deleteBuffer(srcBufferObj);
+        this.device.deleteBuffer(srcBufferObj);
 
         this.arenaBuffer = dstBufferObj;
         this.capacity = capacity;
@@ -245,8 +243,8 @@ public class AsyncBufferArena implements GlBufferArena {
     }
 
     @Override
-    public void delete(CommandList commands) {
-        commands.deleteBuffer(this.arenaBuffer);
+    public void delete() {
+        this.device.deleteBuffer(this.arenaBuffer);
     }
 
     @Override
@@ -255,21 +253,21 @@ public class AsyncBufferArena implements GlBufferArena {
     }
 
     @Override
-    public GlBuffer getBufferObject() {
+    public Buffer getBufferObject() {
         return this.arenaBuffer;
     }
 
     @Override
-    public boolean upload(CommandList commandList, Stream<PendingUpload> stream) {
+    public boolean upload(Stream<PendingUpload> stream) {
         // Record the buffer object before we start any work
         // If the arena needs to re-allocate a buffer, this will allow us to check and return an appropriate flag
-        GlBuffer buffer = this.arenaBuffer;
+        Buffer buffer = this.arenaBuffer;
 
         // A linked list is used as we'll be randomly removing elements and want O(1) performance
         List<PendingUpload> queue = stream.collect(Collectors.toCollection(LinkedList::new));
 
         // Try to upload all of the data into free segments first
-        this.tryUploads(commandList, queue);
+        this.tryUploads(queue);
 
         // If we weren't able to upload some buffers, they will have been left behind in the queue
         if (!queue.isEmpty()) {
@@ -281,10 +279,10 @@ public class AsyncBufferArena implements GlBufferArena {
             // Ask the arena to grow to accommodate the remaining uploads
             // This will force a re-allocation and compaction, which will leave us a continuous free segment
             // for the remaining uploads
-            this.ensureCapacity(commandList, remainingElements);
+            this.ensureCapacity(remainingElements);
 
             // Try again to upload any buffers that failed last time
-            this.tryUploads(commandList, queue);
+            this.tryUploads(queue);
 
             // If we still had failures, something has gone wrong
             if (!queue.isEmpty()) {
@@ -295,12 +293,12 @@ public class AsyncBufferArena implements GlBufferArena {
         return this.arenaBuffer != buffer;
     }
 
-    private void tryUploads(CommandList commandList, List<PendingUpload> queue) {
-        queue.removeIf(upload -> this.tryUpload(commandList, upload));
-        this.stagingBuffer.flush(commandList);
+    private void tryUploads(List<PendingUpload> queue) {
+        queue.removeIf(this::tryUpload);
+        this.stagingBuffer.flush();
     }
 
-    private boolean tryUpload(CommandList commandList, PendingUpload upload) {
+    private boolean tryUpload(PendingUpload upload) {
         ByteBuffer data = upload.getDataBuffer()
                 .getDirectBuffer();
 
@@ -313,21 +311,21 @@ public class AsyncBufferArena implements GlBufferArena {
         }
 
         // Copy the data into our staging buffer, then copy it into the arena's buffer
-        this.stagingBuffer.enqueueCopy(commandList, data, this.arenaBuffer, dst.getOffset());
+        this.stagingBuffer.enqueueCopy(data, this.arenaBuffer, dst.getOffset());
 
         upload.setResult(dst);
 
         return true;
     }
 
-    public void ensureCapacity(CommandList commandList, int elementCount) {
+    public void ensureCapacity(int elementCount) {
         // Re-sizing the arena results in a compaction, so any free space in the arena will be
         // made into one contiguous segment, joined with the new segment of free space we're asking for
         // We calculate the number of free elements in our arena and then subtract that from the total requested
         int elementsNeeded = elementCount - (this.capacity - this.used);
 
         // Try to allocate some extra buffer space unless this is an unusually large allocation
-        this.resize(commandList, Math.max(this.capacity + this.resizeIncrement, this.capacity + elementsNeeded));
+        this.resize(Math.max(this.capacity + this.resizeIncrement, this.capacity + elementsNeeded));
     }
 
     private void checkAssertions() {

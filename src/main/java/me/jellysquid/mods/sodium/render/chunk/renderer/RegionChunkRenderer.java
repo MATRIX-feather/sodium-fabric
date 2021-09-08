@@ -2,22 +2,11 @@ package me.jellysquid.mods.sodium.render.chunk.renderer;
 
 import com.google.common.collect.Lists;
 import me.jellysquid.mods.sodium.SodiumClient;
-import me.jellysquid.mods.thingl.attribute.GlVertexAttributeBinding;
-import me.jellysquid.mods.thingl.buffer.GlBufferUsage;
-import me.jellysquid.mods.thingl.buffer.GlMutableBuffer;
-import me.jellysquid.mods.thingl.device.CommandList;
-import me.jellysquid.mods.thingl.device.DrawCommandList;
-import me.jellysquid.mods.thingl.device.RenderDevice;
-import me.jellysquid.mods.thingl.tessellation.GlIndexType;
-import me.jellysquid.mods.thingl.tessellation.GlPrimitiveType;
-import me.jellysquid.mods.thingl.tessellation.GlTessellation;
-import me.jellysquid.mods.thingl.tessellation.TessellationBinding;
-import me.jellysquid.mods.thingl.util.ElementRange;
 import me.jellysquid.mods.sodium.model.quad.properties.ModelQuadFacing;
 import me.jellysquid.mods.sodium.model.vertex.type.ChunkVertexType;
-import me.jellysquid.mods.sodium.render.chunk.*;
-import me.jellysquid.mods.sodium.render.chunk.context.ChunkCameraContext;
 import me.jellysquid.mods.sodium.render.chunk.ChunkRenderList;
+import me.jellysquid.mods.sodium.render.chunk.RenderSection;
+import me.jellysquid.mods.sodium.render.chunk.context.ChunkCameraContext;
 import me.jellysquid.mods.sodium.render.chunk.context.ChunkRenderMatrices;
 import me.jellysquid.mods.sodium.render.chunk.data.ChunkRenderBounds;
 import me.jellysquid.mods.sodium.render.chunk.format.ChunkMeshAttribute;
@@ -25,6 +14,15 @@ import me.jellysquid.mods.sodium.render.chunk.passes.BlockRenderPass;
 import me.jellysquid.mods.sodium.render.chunk.region.RenderRegion;
 import me.jellysquid.mods.sodium.render.chunk.shader.ChunkShaderBindingPoints;
 import me.jellysquid.mods.sodium.render.chunk.shader.ChunkShaderInterface;
+import me.jellysquid.mods.thingl.attribute.VertexAttributeBinding;
+import me.jellysquid.mods.thingl.buffer.BufferUsage;
+import me.jellysquid.mods.thingl.buffer.MutableBuffer;
+import me.jellysquid.mods.thingl.device.RenderDevice;
+import me.jellysquid.mods.thingl.lists.TessellationCommandList;
+import me.jellysquid.mods.thingl.tessellation.*;
+import me.jellysquid.mods.thingl.tessellation.binding.ElementBufferBinding;
+import me.jellysquid.mods.thingl.tessellation.binding.VertexBufferBinding;
+import me.jellysquid.mods.thingl.util.ElementRange;
 import org.joml.Matrix4f;
 import org.lwjgl.system.MemoryStack;
 
@@ -34,36 +32,34 @@ import java.util.Map;
 
 public class RegionChunkRenderer extends ShaderChunkRenderer {
     private final MultiDrawBatch[] batches;
-    private final GlVertexAttributeBinding[] vertexAttributeBindings;
+    private final VertexAttributeBinding[] vertexAttributeBindings;
 
-    private final GlMutableBuffer chunkInfoBuffer;
+    private final MutableBuffer chunkInfoBuffer;
     private final boolean isBlockFaceCullingEnabled = SodiumClient.options().advanced.useBlockFaceCulling;
 
     public RegionChunkRenderer(RenderDevice device, ChunkVertexType vertexType, float detailDistance) {
         super(device, vertexType, detailDistance);
 
-        this.vertexAttributeBindings = new GlVertexAttributeBinding[] {
-                new GlVertexAttributeBinding(ChunkShaderBindingPoints.ATTRIBUTE_POSITION_ID,
+        this.vertexAttributeBindings = new VertexAttributeBinding[] {
+                new VertexAttributeBinding(ChunkShaderBindingPoints.ATTRIBUTE_POSITION_ID,
                         this.vertexFormat.getAttribute(ChunkMeshAttribute.POSITION_ID)),
-                new GlVertexAttributeBinding(ChunkShaderBindingPoints.ATTRIBUTE_COLOR,
+                new VertexAttributeBinding(ChunkShaderBindingPoints.ATTRIBUTE_COLOR,
                         this.vertexFormat.getAttribute(ChunkMeshAttribute.COLOR)),
-                new GlVertexAttributeBinding(ChunkShaderBindingPoints.ATTRIBUTE_BLOCK_TEXTURE,
+                new VertexAttributeBinding(ChunkShaderBindingPoints.ATTRIBUTE_BLOCK_TEXTURE,
                         this.vertexFormat.getAttribute(ChunkMeshAttribute.BLOCK_TEXTURE)),
-                new GlVertexAttributeBinding(ChunkShaderBindingPoints.ATTRIBUTE_LIGHT_TEXTURE,
+                new VertexAttributeBinding(ChunkShaderBindingPoints.ATTRIBUTE_LIGHT_TEXTURE,
                         this.vertexFormat.getAttribute(ChunkMeshAttribute.LIGHT_TEXTURE)),
-                new GlVertexAttributeBinding(ChunkShaderBindingPoints.ATTRIBUTE_BLOCK_FLAGS,
+                new VertexAttributeBinding(ChunkShaderBindingPoints.ATTRIBUTE_BLOCK_FLAGS,
                         this.vertexFormat.getAttribute(ChunkMeshAttribute.BLOCK_FLAGS), true)
         };
 
-        try (CommandList commandList = device.createCommandList()) {
-            this.chunkInfoBuffer = commandList.createMutableBuffer();
+        this.chunkInfoBuffer = device.createMutableBuffer();
 
-            try (MemoryStack stack = MemoryStack.stackPush()) {
-                commandList.uploadData(this.chunkInfoBuffer, createChunkInfoBuffer(stack), GlBufferUsage.STATIC_DRAW);
-            }
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            device.uploadData(this.chunkInfoBuffer, createChunkInfoBuffer(stack), BufferUsage.STATIC_DRAW);
         }
 
-        this.batches = new MultiDrawBatch[GlIndexType.VALUES.length];
+        this.batches = new MultiDrawBatch[IndexType.VALUES.length];
 
         for (int i = 0; i < this.batches.length; i++) {
             this.batches[i] = MultiDrawBatch.create(ModelQuadFacing.COUNT * RenderRegion.REGION_SIZE);
@@ -90,28 +86,31 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
     }
 
     @Override
-    public void render(ChunkRenderMatrices matrices, CommandList commandList,
+    public void render(RenderDevice device, ChunkRenderMatrices matrices,
                        ChunkRenderList list, BlockRenderPass pass,
                        ChunkCameraContext camera) {
-        super.begin(pass);
+        device.usePipeline(pass.pipeline(), (pipelineCommands) -> {
+            pipelineCommands.useProgram(this.getProgram(pass), (programCommands, programInterface) -> {
+                super.setShaderParameters(programInterface);
 
-        ChunkShaderInterface shader = this.activeProgram.getInterface();
-        shader.setProjectionMatrix(matrices.projection());
-        shader.setDrawUniforms(this.chunkInfoBuffer);
+                programInterface.setProjectionMatrix(matrices.projection());
+                programInterface.setDrawUniforms(this.chunkInfoBuffer);
 
-        for (Map.Entry<RenderRegion, List<RenderSection>> entry : sortedRegions(list, pass.isTranslucent())) {
-            RenderRegion region = entry.getKey();
-            List<RenderSection> regionSections = entry.getValue();
+                for (Map.Entry<RenderRegion, List<RenderSection>> entry : sortedRegions(list, pass.isTranslucent())) {
+                    RenderRegion region = entry.getKey();
+                    List<RenderSection> regionSections = entry.getValue();
 
-            if (!buildDrawBatches(regionSections, pass, camera)) {
-                continue;
-            }
+                    if (!this.buildDrawBatches(regionSections, pass, camera)) {
+                        continue;
+                    }
 
-            this.setModelMatrixUniforms(shader, matrices, region, camera);
+                    this.setModelMatrixUniforms(programInterface, matrices, region, camera);
 
-            GlTessellation tessellation = this.createTessellationForRegion(commandList, region.getArenas(), pass);
-            executeDrawBatches(commandList, tessellation);
-        }
+                    programCommands.useTessellation(this.createTessellationForRegion(device, region.getArenas(), pass),
+                            this::executeDrawBatches);
+                }
+            });
+        });
         
         super.end();
     }
@@ -180,23 +179,20 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
         return nonEmpty;
     }
 
-    private GlTessellation createTessellationForRegion(CommandList commandList, RenderRegion.RenderRegionArenas arenas, BlockRenderPass pass) {
-        GlTessellation tessellation = arenas.getTessellation(pass);
+    private Tessellation createTessellationForRegion(RenderDevice device, RenderRegion.RenderRegionArenas arenas, BlockRenderPass pass) {
+        Tessellation tessellation = arenas.getTessellation(pass);
 
         if (tessellation == null) {
-            arenas.setTessellation(pass, tessellation = this.createRegionTessellation(commandList, arenas));
+            arenas.setTessellation(pass, tessellation = this.createRegionTessellation(device, arenas));
         }
 
         return tessellation;
     }
 
-    private void executeDrawBatches(CommandList commandList, GlTessellation tessellation) {
+    private void executeDrawBatches(TessellationCommandList commandList) {
         for (int i = 0; i < this.batches.length; i++) {
             MultiDrawBatch batch = this.batches[i];
-
-            try (DrawCommandList drawCommandList = commandList.beginTessellating(tessellation)) {
-                drawCommandList.multiDrawElementsBaseVertex(batch.getPointerBuffer(), batch.getCountBuffer(), batch.getBaseVertexBuffer(), GlIndexType.VALUES[i]);
-            }
+            commandList.multiDrawElementsBaseVertex(batch.getPointerBuffer(), batch.getCountBuffer(), batch.getBaseVertexBuffer(), IndexType.VALUES[i]);
         }
     }
 
@@ -221,11 +217,10 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
         }
     }
 
-    private GlTessellation createRegionTessellation(CommandList commandList, RenderRegion.RenderRegionArenas arenas) {
-        return commandList.createTessellation(GlPrimitiveType.TRIANGLES, new TessellationBinding[] {
-                TessellationBinding.forVertexBuffer(arenas.vertexBuffers.getBufferObject(), this.vertexAttributeBindings),
-                TessellationBinding.forElementBuffer(arenas.indexBuffers.getBufferObject())
-        });
+    private Tessellation createRegionTessellation(RenderDevice device, RenderRegion.RenderRegionArenas arenas) {
+        return device.createTessellation(PrimitiveType.TRIANGLES, new VertexBufferBinding[] {
+                new VertexBufferBinding(arenas.vertexBuffers.getBufferObject(), this.vertexFormat, this.vertexAttributeBindings)
+        }, new ElementBufferBinding(arenas.indexBuffers.getBufferObject()));
     }
 
     @Override
@@ -236,8 +231,7 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
             batch.delete();
         }
 
-        RenderDevice.INSTANCE.createCommandList()
-                .deleteBuffer(this.chunkInfoBuffer);
+        this.device.deleteBuffer(this.chunkInfoBuffer);
     }
 
     private static Iterable<Map.Entry<RenderRegion, List<RenderSection>>> sortedRegions(ChunkRenderList list, boolean translucent) {

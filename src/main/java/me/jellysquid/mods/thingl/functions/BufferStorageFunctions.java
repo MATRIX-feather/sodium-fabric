@@ -1,8 +1,8 @@
 package me.jellysquid.mods.thingl.functions;
 
-import me.jellysquid.mods.thingl.buffer.GlBufferStorageFlags;
-import me.jellysquid.mods.thingl.buffer.GlBufferTarget;
-import me.jellysquid.mods.thingl.device.RenderDevice;
+import me.jellysquid.mods.thingl.buffer.BufferStorageFlags;
+import me.jellysquid.mods.thingl.buffer.BufferTarget;
+import me.jellysquid.mods.thingl.device.RenderDeviceImpl;
 import me.jellysquid.mods.thingl.util.EnumBitField;
 import org.lwjgl.opengl.ARBBufferStorage;
 import org.lwjgl.opengl.GL44C;
@@ -11,24 +11,24 @@ import org.lwjgl.opengl.GLCapabilities;
 public enum BufferStorageFunctions {
     NONE {
         @Override
-        public void createBufferStorage(GlBufferTarget target, long length, EnumBitField<GlBufferStorageFlags> flags) {
+        public void createBufferStorage(BufferTarget target, long length, EnumBitField<BufferStorageFlags> flags) {
             throw new UnsupportedOperationException();
         }
     },
     CORE {
         @Override
-        public void createBufferStorage(GlBufferTarget target, long length, EnumBitField<GlBufferStorageFlags> flags) {
+        public void createBufferStorage(BufferTarget target, long length, EnumBitField<BufferStorageFlags> flags) {
             GL44C.glBufferStorage(target.getTargetParameter(), length, flags.getBitField());
         }
     },
     ARB {
         @Override
-        public void createBufferStorage(GlBufferTarget target, long length, EnumBitField<GlBufferStorageFlags> flags) {
+        public void createBufferStorage(BufferTarget target, long length, EnumBitField<BufferStorageFlags> flags) {
             ARBBufferStorage.glBufferStorage(target.getTargetParameter(), length, flags.getBitField());
         }
     };
 
-    public static BufferStorageFunctions pickBest(RenderDevice device) {
+    public static BufferStorageFunctions pickBest(RenderDeviceImpl device) {
         GLCapabilities capabilities = device.getCapabilities();
 
         if (capabilities.OpenGL44) {
@@ -41,5 +41,5 @@ public enum BufferStorageFunctions {
     }
 
 
-    public abstract void createBufferStorage(GlBufferTarget target, long length, EnumBitField<GlBufferStorageFlags> flags);
+    public abstract void createBufferStorage(BufferTarget target, long length, EnumBitField<BufferStorageFlags> flags);
 }

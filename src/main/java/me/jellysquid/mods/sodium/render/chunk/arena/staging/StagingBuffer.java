@@ -1,16 +1,15 @@
 package me.jellysquid.mods.sodium.render.chunk.arena.staging;
 
-import me.jellysquid.mods.thingl.buffer.GlBuffer;
-import me.jellysquid.mods.thingl.device.CommandList;
+import me.jellysquid.mods.thingl.buffer.Buffer;
 
 import java.nio.ByteBuffer;
 
 public interface StagingBuffer {
-    void enqueueCopy(CommandList commandList, ByteBuffer data, GlBuffer dst, long writeOffset);
+    void enqueueCopy(ByteBuffer data, Buffer dst, long writeOffset);
 
-    void flush(CommandList commandList);
+    void flush();
 
-    void delete(CommandList commandList);
+    void delete();
 
     void flip();
 }
