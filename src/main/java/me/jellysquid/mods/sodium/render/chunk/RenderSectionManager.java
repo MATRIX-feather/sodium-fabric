@@ -12,6 +12,7 @@ import me.jellysquid.mods.sodium.SodiumClient;
 import me.jellysquid.mods.sodium.SodiumRender;
 import me.jellysquid.mods.sodium.interop.vanilla.world.ChunkStatusListener;
 import me.jellysquid.mods.sodium.interop.vanilla.world.ClientChunkManagerExtended;
+import me.jellysquid.mods.sodium.model.quad.properties.ModelQuadFacingBits;
 import me.jellysquid.mods.sodium.render.SodiumWorldRenderer;
 import me.jellysquid.mods.sodium.render.chunk.compile.ChunkBuildResult;
 import me.jellysquid.mods.sodium.render.chunk.compile.ChunkBuilder;
@@ -25,6 +26,7 @@ import me.jellysquid.mods.sodium.render.chunk.graph.ChunkGraphIterationQueue;
 import me.jellysquid.mods.sodium.render.chunk.passes.BlockRenderPass;
 import me.jellysquid.mods.sodium.render.chunk.region.RenderRegion;
 import me.jellysquid.mods.sodium.render.chunk.region.RenderRegionManager;
+import me.jellysquid.mods.sodium.render.chunk.region.RenderRegionStorage;
 import me.jellysquid.mods.sodium.render.chunk.region.RenderRegionVisibility;
 import me.jellysquid.mods.sodium.render.chunk.renderer.RegionChunkRenderer;
 import me.jellysquid.mods.sodium.render.chunk.tasks.ChunkRenderBuildTask;
@@ -32,7 +34,7 @@ import me.jellysquid.mods.sodium.render.chunk.tasks.ChunkRenderEmptyBuildTask;
 import me.jellysquid.mods.sodium.render.chunk.tasks.ChunkRenderRebuildTask;
 import me.jellysquid.mods.sodium.util.DirectionUtil;
 import me.jellysquid.mods.sodium.util.MathUtil;
-import me.jellysquid.mods.sodium.util.collections.FutureQueueDrainingIterator;
+import me.jellysquid.mods.sodium.util.collections.WorkStealingFutureDrain;
 import me.jellysquid.mods.sodium.world.WorldSlice;
 import me.jellysquid.mods.sodium.world.cloned.ChunkRenderContext;
 import me.jellysquid.mods.sodium.world.cloned.ClonedChunkSectionCache;
@@ -53,7 +55,7 @@ public class RenderSectionManager implements ChunkStatusListener {
     /**
      * The maximum distance a chunk can be from the player's camera in order to be eligible for blocking updates.
      */
-    private static final double NEARBY_CHUNK_DISTANCE = Math.pow(48, 2.0);
+    private static final double NEARBY_CHUNK_DISTANCE = Math.pow(32, 2.0);
 
     /**
      * The minimum distance the culling plane can be from the player's camera. This helps to prevent mathematical
@@ -98,15 +100,17 @@ public class RenderSectionManager implements ChunkStatusListener {
 
     private boolean needsUpdate;
 
-    private boolean useFogCulling;
-    private boolean useOcclusionCulling;
-
     private double fogRenderCutoff;
 
     private FrustumIntersection frustum;
 
     private int currentFrame = 0;
     private final double detailFarPlane;
+
+    private boolean useFogCulling;
+    private boolean useOcclusionCulling;
+    private boolean useBlockFaceCulling;
+    private boolean alwaysDeferChunkUpdates;
 
     public RenderSectionManager(SodiumWorldRenderer worldRenderer, ClientWorld world, int renderDistance, RenderDevice device) {
         this.worldRenderer = worldRenderer;
@@ -165,13 +169,18 @@ public class RenderSectionManager implements ChunkStatusListener {
         this.cameraY = (float) cameraPos.y;
         this.cameraZ = (float) cameraPos.z;
 
-        this.useFogCulling = false;
+        var options = SodiumClient.options();
 
-        if (SodiumClient.options().advanced.useFogOcclusion) {
+        this.useBlockFaceCulling = options.performance.useBlockFaceCulling;
+        this.useFogCulling = options.performance.useFogOcclusion;
+        this.alwaysDeferChunkUpdates = options.performance.alwaysDeferChunkUpdates;
+
+        if (this.useFogCulling) {
             float dist = RenderSystem.getShaderFogEnd() + FOG_PLANE_OFFSET;
 
-            if (dist != 0.0f) {
-                this.useFogCulling = true;
+            if (dist == 0.0f) {
+                this.fogRenderCutoff = Double.POSITIVE_INFINITY;
+            } else {
                 this.fogRenderCutoff = Math.max(FOG_PLANE_MIN_DISTANCE, dist * dist);
             }
         }
@@ -230,6 +239,9 @@ public class RenderSectionManager implements ChunkStatusListener {
         if (render.isTickable()) {
             this.tickableChunks.add(render);
         }
+
+        render.updateFaceVisibility(this.cameraX, this.cameraY, this.cameraZ,
+                this.useBlockFaceCulling ? ModelQuadFacingBits.UNASSIGNED_BITS : ModelQuadFacingBits.ALL_BITS);
     }
 
     private void addEntitiesToRenderLists(RenderSection render) {
@@ -333,7 +345,7 @@ public class RenderSectionManager implements ChunkStatusListener {
     }
 
     public void updateChunks() {
-        PriorityQueue<CompletableFuture<ChunkBuildResult>> blockingFutures = this.submitRebuildTasks(ChunkUpdateType.IMPORTANT_REBUILD);
+        var blockingFutures = this.submitRebuildTasks(ChunkUpdateType.IMPORTANT_REBUILD);
 
         this.submitRebuildTasks(ChunkUpdateType.LOD_CHANGE);
         this.submitRebuildTasks(ChunkUpdateType.INITIAL_BUILD);
@@ -344,16 +356,16 @@ public class RenderSectionManager implements ChunkStatusListener {
 
         if (!blockingFutures.isEmpty()) {
             this.needsUpdate = true;
-            this.regions.upload(new FutureQueueDrainingIterator<>(blockingFutures));
+            this.regions.upload(new WorkStealingFutureDrain<>(blockingFutures, this.builder::stealTask));
         }
 
         this.regions.cleanup();
     }
 
-    private PriorityQueue<CompletableFuture<ChunkBuildResult>> submitRebuildTasks(ChunkUpdateType filterType) {
+    private LinkedList<CompletableFuture<ChunkBuildResult>> submitRebuildTasks(ChunkUpdateType filterType) {
         int budget = filterType.isImportant() ? Integer.MAX_VALUE : this.builder.getSchedulingBudget();
 
-        PriorityQueue<CompletableFuture<ChunkBuildResult>> immediateFutures = new ObjectArrayFIFOQueue<>();
+        LinkedList<CompletableFuture<ChunkBuildResult>> immediateFutures = new LinkedList<>();
         PriorityQueue<RenderSection> queue = this.rebuildQueues.get(filterType);
 
         while (budget > 0 && !queue.isEmpty()) {
@@ -375,7 +387,7 @@ public class RenderSectionManager implements ChunkStatusListener {
 
             if (filterType.isImportant()) {
                 CompletableFuture<ChunkBuildResult> immediateFuture = this.builder.schedule(task);
-                immediateFutures.enqueue(immediateFuture);
+                immediateFutures.add(immediateFuture);
 
                 future = immediateFuture;
             } else {
@@ -454,7 +466,7 @@ public class RenderSectionManager implements ChunkStatusListener {
         RenderSection section = this.sections.get(ChunkSectionPos.asLong(x, y, z));
 
         if (section != null && section.isBuilt()) {
-            if (important || this.isChunkPrioritized(section)) {
+            if (!this.alwaysDeferChunkUpdates && (important || this.isChunkPrioritized(section))) {
                 section.markForUpdate(ChunkUpdateType.IMPORTANT_REBUILD);
             } else {
                 section.markForUpdate(ChunkUpdateType.REBUILD);
@@ -636,31 +648,26 @@ public class RenderSectionManager implements ChunkStatusListener {
     }
 
     public Collection<String> getDebugStrings() {
-        List<String> list = new ArrayList<>();
-
-        Iterator<RenderRegion.RenderRegionArenas> it = this.regions.getLoadedRegions()
-                .stream()
-                .map(RenderRegion::getArenas)
-                .filter(Objects::nonNull)
-                .iterator();
-
         int count = 0;
 
         long deviceUsed = 0;
         long deviceAllocated = 0;
 
-        while (it.hasNext()) {
-            RenderRegion.RenderRegionArenas arena = it.next();
-            deviceUsed += arena.getDeviceUsedMemory();
-            deviceAllocated += arena.getDeviceAllocatedMemory();
+        for (RenderRegion region : this.regions.getLoadedRegions()) {
+            for (RenderRegionStorage storage : region.getAllStorage()) {
+                deviceUsed += storage.getDeviceUsedMemory();
+                deviceAllocated += storage.getDeviceAllocatedMemory();
 
-            count++;
+                count++;
+            }
         }
 
+        List<String> list = new ArrayList<>();
         list.add(String.format("Chunk arena allocator: %s", SodiumClient.options().advanced.arenaMemoryAllocator.name()));
         list.add(String.format("Device buffer objects: %d", count));
         list.add(String.format("Device memory: %d/%d MiB", MathUtil.toMib(deviceUsed), MathUtil.toMib(deviceAllocated)));
         list.add(String.format("Staging buffer: %s", this.regions.getStagingBuffer().toString()));
+
         return list;
     }
 

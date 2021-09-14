@@ -6,6 +6,7 @@ import me.jellysquid.mods.sodium.model.quad.properties.ModelQuadFacing;
 import me.jellysquid.mods.sodium.model.quad.properties.ModelQuadWinding;
 import me.jellysquid.mods.sodium.render.chunk.compile.ChunkBuildBuffers;
 import me.jellysquid.mods.sodium.render.chunk.compile.buffers.ChunkModelBuilder;
+import me.jellysquid.mods.sodium.render.chunk.data.ChunkRenderBounds;
 import me.jellysquid.mods.sodium.render.chunk.format.ModelVertexCompression;
 import me.jellysquid.mods.sodium.render.chunk.material.MaterialCutoutFlag;
 import me.jellysquid.mods.sodium.render.chunk.material.MaterialFlag;
@@ -29,16 +30,20 @@ public class TerrainRenderer extends AbstractRenderer<TerrainBlockRenderInfo> {
             .getBakedModelManager()
             .getAtlas(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE));
 
-    TerrainRenderer(TerrainBlockRenderInfo blockInfo, ChunkBuildBuffers buildBuffers, QuadLighter lighter, RenderContext.QuadTransform transform) {
+    private final ChunkRenderBounds.Builder bounds;
+
+    TerrainRenderer(TerrainBlockRenderInfo blockInfo, ChunkBuildBuffers buildBuffers, QuadLighter lighter, RenderContext.QuadTransform transform, ChunkRenderBounds.Builder bounds) {
         super(blockInfo, lighter, transform);
         
         this.buildBuffers = buildBuffers;
+        this.bounds = bounds;
     }
 
     @Override
     protected void emitQuad(MutableQuadViewImpl quad, BlendMode renderLayer) {
         BlockRenderPass pass = switch (renderLayer) {
-            case DEFAULT, SOLID, CUTOUT, CUTOUT_MIPPED -> DefaultBlockRenderPasses.OPAQUE;
+            case DEFAULT, SOLID -> DefaultBlockRenderPasses.SOLID;
+            case CUTOUT, CUTOUT_MIPPED -> DefaultBlockRenderPasses.CUTOUT;
             case TRANSLUCENT -> DefaultBlockRenderPasses.TRANSLUCENT;
         };
 
@@ -53,15 +58,22 @@ public class TerrainRenderer extends AbstractRenderer<TerrainBlockRenderInfo> {
         ModelVertexSink vertexSink = builder.getVertexSink();
         vertexSink.ensureCapacity(4);
 
-        IndexBufferBuilder indexSink = builder.getIndexSink(getBlockFace(quad));
+        var facing = getBlockFace(quad);
+
+        IndexBufferBuilder indexSink = builder.getIndexSink(facing);
         int vertexStart = vertexSink.getVertexCount();
 
         Vec3i relativePos = this.blockInfo.getRelativeBlockPosition();
         short chunkId = this.blockInfo.getChunkId();
 
         for (int i = 0; i < 4; i++) {
-            long pos = ModelVertexCompression.encodePositionAttribute(
-                    quad.x(i) + relativePos.getX(), quad.y(i) + relativePos.getY(), quad.z(i) + relativePos.getZ());
+            float x = quad.x(i) + relativePos.getX();
+            float y = quad.y(i) + relativePos.getY();
+            float z = quad.z(i) + relativePos.getZ();
+
+            this.bounds.updateBounds(facing, x, y, z);
+
+            long pos = ModelVertexCompression.encodePositionAttribute(x, y, z);
 
             int color = ColorARGB.toABGR(quad.spriteColor(i, DEFAULT_TEXTURE_INDEX));
             int blockTexture = ModelVertexCompression.encodeTextureAttribute(
