@@ -107,7 +107,7 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
                     }
 
                     if (region.getNeedsTranslucencyCompute() && !regionSections.isEmpty()) {
-                        if (!buildDrawBatch(regionSections, pass, camera)) {
+                        if (!buildDrawBatches(regionSections, pass, camera)) {
                             continue;
                         }
                         float x = getCameraTranslation(region.getOriginX(), camera.blockX, camera.deltaX);
@@ -143,7 +143,7 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
             RenderRegion region = entry.getKey();
             List<RenderSection> regionSections = entry.getValue();
 
-            if (!this.buildDrawBatch(regionSections, pass, camera)) {
+            if (!this.buildDrawBatches(regionSections, pass, camera)) {
                 continue;
             }
 
@@ -154,7 +154,10 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
         super.end();
     }
 
-    private boolean buildDrawBatch(List<RenderSection> sections, BlockRenderPass pass, ChunkCameraContext camera) {
+    //buildDrawBatch 重命名到 buildDrawBatches
+    //避免与Iris冲突
+    //(虽然不知道为什么加了Iris后Translucent Face Sorting开和没开差不多)
+    private boolean buildDrawBatches(List<RenderSection> sections, BlockRenderPass pass, ChunkCameraContext camera) {
         batch.begin();
 
         for (RenderSection render : sortedChunks(sections, pass.isTranslucent())) {
