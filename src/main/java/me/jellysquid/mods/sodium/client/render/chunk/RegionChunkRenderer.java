@@ -23,12 +23,8 @@ import me.jellysquid.mods.sodium.client.render.chunk.passes.BlockRenderPass;
 import me.jellysquid.mods.sodium.client.render.chunk.region.RenderRegion;
 import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkShaderBindingPoints;
 import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkShaderInterface;
-<<<<<<< HEAD
-import me.jellysquid.mods.sodium.client.render.chunk.shader.ComputeShaderInterface;
-=======
 import org.joml.Matrix4f;
 import org.lwjgl.system.MemoryStack;
->>>>>>> parent of 09649b41 (Merge remote-tracking branch 'meslweis/translucency-sort' into 1.17.x/dev)
 import org.lwjgl.system.MemoryUtil;
 
 import java.nio.ByteBuffer;
@@ -97,18 +93,10 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
         super.end();
     }
 
-<<<<<<< HEAD
-    //buildDrawBatch 重命名到 buildDrawBatches
-    //避免与Iris冲突
-    //(虽然不知道为什么加了Iris后Translucent Face Sorting开和没开差不多)
-    private boolean buildDrawBatches(List<RenderSection> sections, BlockRenderPass pass, ChunkCameraContext camera) {
-        batch.begin();
-=======
     private boolean buildDrawBatches(List<RenderSection> sections, BlockRenderPass pass, ChunkCameraContext camera) {
         for (MultiDrawBatch batch : this.batches) {
             batch.begin();
         }
->>>>>>> parent of 09649b41 (Merge remote-tracking branch 'meslweis/translucency-sort' into 1.17.x/dev)
 
         for (RenderSection render : sortedChunks(sections, pass.isTranslucent())) {
             ChunkGraphicsState state = render.getGraphicsState(pass);
@@ -185,7 +173,7 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
 
             if (!batch.isEmpty()) {
                 try (DrawCommandList drawCommandList = commandList.beginTessellating(tessellation)) {
-                    drawCommandList.multiDrawElementsBaseVertex(batch.getPointerBuffer(), batch.getCountBuffer(), batch.getBaseVertexBuffer(), GlIndexType.VALUES[i]);
+                    drawCommandList.multiDrawElementsBaseVertex(batch.getPointerBuffer(), batch.getCountBuffer(), batch.getBaseVertexBuffer(), GlIndexType.VALUES[i], GlPrimitiveType.TRIANGLES);
                 }
             }
         }
@@ -207,7 +195,7 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
     }
 
     private GlTessellation createRegionTessellation(CommandList commandList, RenderRegion.RenderRegionArenas arenas) {
-        return commandList.createTessellation(GlPrimitiveType.TRIANGLES, new TessellationBinding[] {
+        return commandList.createTessellation(new TessellationBinding[] {
                 TessellationBinding.forVertexBuffer(arenas.vertexBuffers.getBufferObject(), this.vertexAttributeBindings),
                 TessellationBinding.forElementBuffer(arenas.indexBuffers.getBufferObject())
         });
