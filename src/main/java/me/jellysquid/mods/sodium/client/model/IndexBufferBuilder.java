@@ -32,16 +32,43 @@ public class IndexBufferBuilder {
         return new Result(this.indices);
     }
 
+    private static GlIndexType getOptimalIndexType(int count) {
+        if (count < 65536) {
+            return GlIndexType.UNSIGNED_SHORT;
+        } else {
+            return GlIndexType.UNSIGNED_INT;
+        }
+    }
+
     public int getCount() {
         return this.indices.size();
     }
 
     public static class Result {
         private final IntArrayList indices;
-        private final GlIndexType format = GlIndexType.UNSIGNED_INT;
+
+        private final int maxIndex, minIndex;
+        private final GlIndexType format;
 
         private Result(IntArrayList indices) {
             this.indices = indices;
+
+            int maxIndex = Integer.MIN_VALUE;
+            int minIndex = Integer.MAX_VALUE;
+
+            IntIterator it = this.indices.iterator();
+
+            while (it.hasNext()) {
+                int i = it.nextInt();
+
+                minIndex = Math.min(minIndex, i);
+                maxIndex = Math.max(maxIndex, i);
+            }
+
+            this.minIndex = minIndex;
+            this.maxIndex = maxIndex;
+
+            this.format = getOptimalIndexType(this.maxIndex - this.minIndex);
         }
 
         public int writeTo(int offset, ByteBuffer buffer) {
@@ -51,7 +78,14 @@ public class IndexBufferBuilder {
             int pointer = offset;
 
             while (it.hasNext()) {
-                buffer.putInt(pointer, it.nextInt());
+                int value = it.nextInt() - this.minIndex;
+
+                switch (this.format) {
+                    case UNSIGNED_BYTE -> buffer.put(pointer, (byte) value);
+                    case UNSIGNED_SHORT -> buffer.putShort(pointer, (short) value);
+                    case UNSIGNED_INT -> buffer.putInt(pointer, value);
+                }
+
                 pointer += stride;
             }
 
@@ -67,7 +101,7 @@ public class IndexBufferBuilder {
         }
 
         public int getBaseVertex() {
-            return 0;
+            return this.minIndex;
         }
 
         public GlIndexType getFormat() {
