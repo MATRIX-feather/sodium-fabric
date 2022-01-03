@@ -54,6 +54,7 @@ public class SodiumGameOptions {
         public boolean allowPersistentMemoryMapping = true;
 
         public boolean enableMemoryTracing = false;
+        public boolean useTranslucentFaceSorting = true;
 
         public int cpuRenderAheadLimit = 3;
     }
