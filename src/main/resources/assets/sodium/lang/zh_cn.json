@@ -62,5 +62,7 @@
     "sodium.options.always_defer_chunk_updates.tooltip": "如果启用，渲染将永远不会等待区块更新完成，即使它们很重要。这在某些情况下可以极大地提高帧率，但它可能会在世界上产生明显的视觉滞后。",
     "sodium.options.buttons.undo": "撤销",
     "sodium.options.buttons.apply": "应用",
-    "sodium.options.buttons.donate": "给我们买杯咖啡！"
+    "sodium.options.buttons.donate": "给我们买杯咖啡！",
+    "sodium.options.translucent_face_sorting.name": "半透明方块面排序",
+    "sodium.options.translucent_face_sorting.tooltip": "如果启用，将正确应用来自彩色玻璃和水等表面的半透明效果。\n\n需要 OpenGL 4.3 或 ARB_compute_shader and ARB_shader_storage_buffer_object"
   }
