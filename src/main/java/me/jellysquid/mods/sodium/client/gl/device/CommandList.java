@@ -3,6 +3,7 @@ package me.jellysquid.mods.sodium.client.gl.device;
 import me.jellysquid.mods.sodium.client.gl.array.GlVertexArray;
 import me.jellysquid.mods.sodium.client.gl.buffer.*;
 import me.jellysquid.mods.sodium.client.gl.sync.GlFence;
+import me.jellysquid.mods.sodium.client.gl.tessellation.GlPrimitiveType;
 import me.jellysquid.mods.sodium.client.gl.tessellation.GlTessellation;
 import me.jellysquid.mods.sodium.client.gl.tessellation.TessellationBinding;
 import me.jellysquid.mods.sodium.client.gl.util.EnumBitField;
@@ -15,7 +16,7 @@ public interface CommandList extends AutoCloseable {
 
     GlImmutableBuffer createImmutableBuffer(long bufferSize, EnumBitField<GlBufferStorageFlags> flags);
 
-    GlTessellation createTessellation(TessellationBinding[] bindings);
+    GlTessellation createTessellation(GlPrimitiveType primitiveType, TessellationBinding[] bindings);
 
     void bindVertexArray(GlVertexArray array);
 

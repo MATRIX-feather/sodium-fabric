@@ -142,15 +142,14 @@ public class MappedStagingBuffer implements StagingBuffer {
     @Override
     public void flip() {
         while (!this.fencedRegions.isEmpty()) {
-            var region = this.fencedRegions.first();
-            var fence = region.fence();
+            FencedMemoryRegion fencedRegion = this.fencedRegions.first();
 
-            if (!fence.poll()) {
+            if (!fencedRegion.fence().isCompleted()) {
                 break;
             }
 
             this.fencedRegions.dequeue();
-            this.remaining += region.length();
+            this.remaining += fencedRegion.length();
         }
     }
 

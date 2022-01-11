@@ -36,11 +36,11 @@ public class GlStateTracker {
         }
     }
 
-    public boolean makeBufferActive(GlBufferTarget target, int handle) {
-        boolean changed = this.bufferState[target.ordinal()] != handle;
+    public boolean makeBufferActive(GlBufferTarget target, GlBuffer buffer) {
+        boolean changed = this.bufferState[target.ordinal()] != buffer.handle();
 
         if (changed) {
-            this.bufferState[target.ordinal()] = handle;
+            this.bufferState[target.ordinal()] = buffer.handle();
         }
 
         return changed;

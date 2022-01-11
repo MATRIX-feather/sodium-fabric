@@ -24,6 +24,7 @@ import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkShaderBindingPo
 import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkShaderInterface;
 import me.jellysquid.mods.sodium.client.render.chunk.shader.ComputeShaderInterface;
 import org.joml.Matrix4f;
+import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 
 import java.nio.ByteBuffer;
@@ -157,6 +158,9 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
         super.end();
     }
 
+    //buildDrawBatch 重命名到 buildDrawBatches
+    //避免与Iris冲突
+    //(虽然不知道为什么加了Iris后Translucent Face Sorting开和没开差不多)
     private boolean buildDrawBatches(List<RenderSection> sections, BlockRenderPass pass, ChunkCameraContext camera) {
         batch.begin();
 
@@ -225,7 +229,7 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
     private void executeDrawBatches(CommandList commandList, GlTessellation tessellation) {
         if (!batch.isEmpty()) {
             try (DrawCommandList drawCommandList = commandList.beginTessellating(tessellation)) {
-                drawCommandList.multiDrawElementsBaseVertex(batch.getPointerBuffer(), batch.getCountBuffer(), batch.getBaseVertexBuffer(), GlIndexType.UNSIGNED_INT, GlPrimitiveType.TRIANGLES);
+                drawCommandList.multiDrawElementsBaseVertex(batch.getPointerBuffer(), batch.getCountBuffer(), batch.getBaseVertexBuffer(), GlIndexType.UNSIGNED_INT);
             }
         }
     }
@@ -245,7 +249,7 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
     }
 
     private GlTessellation createRegionTessellation(CommandList commandList, RenderRegion.RenderRegionArenas arenas) {
-        return commandList.createTessellation(new TessellationBinding[] {
+        return commandList.createTessellation(GlPrimitiveType.TRIANGLES, new TessellationBinding[] {
                 TessellationBinding.forVertexBuffer(arenas.vertexBuffers.getBufferObject(), this.vertexAttributeBindings),
                 TessellationBinding.forElementBuffer(arenas.indexBuffers.getBufferObject())
         });

@@ -5,10 +5,10 @@ import me.jellysquid.mods.sodium.client.model.light.LightPipeline;
 import me.jellysquid.mods.sodium.client.model.light.LightPipelineProvider;
 import me.jellysquid.mods.sodium.client.model.light.data.QuadLightData;
 import me.jellysquid.mods.sodium.client.model.quad.ModelQuad;
-import me.jellysquid.mods.sodium.client.model.quad.blender.ColorSampler;
+import me.jellysquid.mods.sodium.client.model.quad.ModelQuadColorProvider;
 import me.jellysquid.mods.sodium.client.model.quad.ModelQuadView;
 import me.jellysquid.mods.sodium.client.model.quad.ModelQuadViewMutable;
-import me.jellysquid.mods.sodium.client.model.quad.blender.ColorBlender;
+import me.jellysquid.mods.sodium.client.model.quad.blender.BiomeColorBlender;
 import me.jellysquid.mods.sodium.client.model.quad.properties.ModelQuadFacing;
 import me.jellysquid.mods.sodium.client.model.quad.properties.ModelQuadFlags;
 import me.jellysquid.mods.sodium.client.model.quad.properties.ModelQuadWinding;
@@ -48,7 +48,7 @@ public class FluidRenderer {
     private final ModelQuadViewMutable quad = new ModelQuad();
 
     private final LightPipelineProvider lighters;
-    private final ColorBlender colorBlender;
+    private final BiomeColorBlender biomeColorBlender;
 
     // Cached wrapper type that adapts FluidRenderHandler to support QuadColorProvider<FluidState>
     private final FabricFluidColorizerAdapter fabricColorProviderAdapter = new FabricFluidColorizerAdapter();
@@ -56,7 +56,7 @@ public class FluidRenderer {
     private final QuadLightData quadLightData = new QuadLightData();
     private final int[] quadColors = new int[4];
 
-    public FluidRenderer(LightPipelineProvider lighters, ColorBlender colorBlender) {
+    public FluidRenderer(LightPipelineProvider lighters, BiomeColorBlender biomeColorBlender) {
         this.waterOverlaySprite = ModelLoader.WATER_OVERLAY.getSprite();
 
         int normal = Norm3b.pack(0.0f, 1.0f, 0.0f);
@@ -66,7 +66,7 @@ public class FluidRenderer {
         }
 
         this.lighters = lighters;
-        this.colorBlender = colorBlender;
+        this.biomeColorBlender = biomeColorBlender;
     }
 
     private boolean isFluidOccluded(BlockRenderView world, int x, int y, int z, Direction dir, Fluid fluid) {
@@ -126,7 +126,7 @@ public class FluidRenderer {
         boolean isWater = fluidState.isIn(FluidTags.WATER);
 
         FluidRenderHandler handler = FluidRenderHandlerRegistryImpl.INSTANCE.get(fluidState.getFluid());
-        ColorSampler<FluidState> colorizer = this.createColorProviderAdapter(handler);
+        ModelQuadColorProvider<FluidState> colorizer = this.createColorProviderAdapter(handler);
 
         Sprite[] sprites = handler.getFluidSprites(world, pos, fluidState);
 
@@ -364,7 +364,7 @@ public class FluidRenderer {
         return rendered;
     }
 
-    private ColorSampler<FluidState> createColorProviderAdapter(FluidRenderHandler handler) {
+    private ModelQuadColorProvider<FluidState> createColorProviderAdapter(FluidRenderHandler handler) {
         FabricFluidColorizerAdapter adapter = this.fabricColorProviderAdapter;
         adapter.setHandler(handler);
 
@@ -372,11 +372,11 @@ public class FluidRenderer {
     }
 
     private void calculateQuadColors(ModelQuadView quad, BlockRenderView world, BlockPos pos, LightPipeline lighter, Direction dir, float brightness,
-                                     ColorSampler<FluidState> colorSampler, FluidState fluidState) {
+                                     ModelQuadColorProvider<FluidState> handler, FluidState fluidState) {
         QuadLightData light = this.quadLightData;
         lighter.calculate(quad, pos, light, dir, false);
 
-        int[] biomeColors = this.colorBlender.getColors(world, pos, quad, colorSampler, fluidState);
+        int[] biomeColors = this.biomeColorBlender.getColors(world, pos, quad, handler, fluidState);
 
         for (int i = 0; i < 4; i++) {
             this.quadColors[i] = ColorABGR.mul(biomeColors != null ? biomeColors[i] : 0xFFFFFFFF, light.br[i] * brightness);
@@ -458,7 +458,7 @@ public class FluidRenderer {
         return totalHeight / (float) samples;
     }
 
-    private static class FabricFluidColorizerAdapter implements ColorSampler<FluidState> {
+    private static class FabricFluidColorizerAdapter implements ModelQuadColorProvider<FluidState> {
         private FluidRenderHandler handler;
 
         public void setHandler(FluidRenderHandler handler) {

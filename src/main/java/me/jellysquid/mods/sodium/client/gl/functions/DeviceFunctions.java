@@ -10,6 +10,6 @@ public class DeviceFunctions {
     }
 
     public BufferStorageFunctions getBufferStorageFunctions() {
-        return this.bufferStorageFunctions;
+        return bufferStorageFunctions;
     }
 }
