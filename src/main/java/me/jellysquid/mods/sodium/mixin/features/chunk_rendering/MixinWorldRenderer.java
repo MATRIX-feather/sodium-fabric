@@ -3,6 +3,7 @@ package me.jellysquid.mods.sodium.mixin.features.chunk_rendering;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import me.jellysquid.mods.sodium.client.gl.device.RenderDevice;
 import me.jellysquid.mods.sodium.client.render.SodiumWorldRenderer;
+import me.jellysquid.mods.sodium.client.util.FlawlessFrames;
 import me.jellysquid.mods.sodium.client.util.frustum.FrustumAdapter;
 import me.jellysquid.mods.sodium.client.world.WorldRendererExtended;
 import net.minecraft.client.MinecraftClient;
@@ -29,6 +30,9 @@ public abstract class MixinWorldRenderer implements WorldRendererExtended {
     @Shadow
     @Final
     private Long2ObjectMap<SortedSet<BlockBreakingInfo>> blockBreakingProgressions;
+
+    @Shadow
+    private boolean field_34810;
 
     private SodiumWorldRenderer renderer;
 
@@ -110,6 +114,20 @@ public abstract class MixinWorldRenderer implements WorldRendererExtended {
 
         try {
             this.renderer.updateChunks(camera, FrustumAdapter.adapt(frustum), this.frame++, spectator);
+
+            if (FlawlessFrames.isActive()) {
+                // Block until all chunk updates have been processed
+                this.renderer.getRenderSectionManager().updateAllChunksNow();
+
+                // If that caused new chunks to become visible, repeat until we got them all
+                while (this.renderer.getRenderSectionManager().isGraphDirty()) {
+                    this.renderer.updateChunks(camera, FrustumAdapter.adapt(frustum), this.frame++, spectator);
+                    this.renderer.getRenderSectionManager().updateAllChunksNow();
+                }
+
+                // We set this because third-party mods may use it (to loop themselves), even if Vanilla does not.
+                this.field_34810 = false;
+            }
         } finally {
             RenderDevice.exitManagedCode();
         }
