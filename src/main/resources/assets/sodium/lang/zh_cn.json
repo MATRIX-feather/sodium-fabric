@@ -55,7 +55,7 @@
     "sodium.options.chunk_memory_allocator.name": "区块内存分配器",
     "sodium.options.chunk_memory_allocator.tooltip": "选择将用于区块渲染的内存分配器。\n1、异步：最快，适用于大多数现代图形驱动程序。\n2、同步：旧图形驱动程序的兼容选项。可能会显着增加内存使用量。",
     "sodium.options.chunk_memory_allocator.async": "异步",
-    "sodium.options.chunk_memory_allocator.swap": "同步",
+    "sodium.options.chunk_memory_allocator.swap": "交换",
     "sodium.options.chunk_update_threads.name": "区块更新线程",
     "sodium.options.chunk_update_threads.tooltip": "指定用于区块构建的线程数。使用更多线程可以加快区块加载和更新的速度，但可能会对帧时间产生负面影响。",
     "sodium.options.always_defer_chunk_updates.name": "始终推迟区块更新",
@@ -64,5 +64,7 @@
     "sodium.options.buttons.apply": "应用",
     "sodium.options.buttons.donate": "给我们买杯咖啡！",
     "sodium.options.translucent_face_sorting.name": "半透明方块面排序",
-    "sodium.options.translucent_face_sorting.tooltip": "如果启用，将正确应用来自彩色玻璃和水等表面的半透明效果。\n\n需要 OpenGL 4.3 或 ARB_compute_shader and ARB_shader_storage_buffer_object"
+    "sodium.options.translucent_face_sorting.tooltip": "如果启用，将正确应用来自彩色玻璃和水等表面的半透明效果。\n\n需要 OpenGL 4.3 或 ARB_compute_shader and ARB_shader_storage_buffer_object",
+    "sodium.options.use_adaptive_sync.name": "使用可变刷新率",
+    "sodium.options.use_adaptive_sync.tooltip": "如果启用，垂直同步将能够交换中间帧并有时会自行禁用，这通常有助于提高响应速度。"
   }
