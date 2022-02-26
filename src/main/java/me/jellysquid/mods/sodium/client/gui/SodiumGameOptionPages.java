@@ -19,6 +19,7 @@ import net.minecraft.client.option.*;
 import net.minecraft.client.util.Window;
 import net.minecraft.text.Text;
 import net.minecraft.text.TranslatableText;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -314,6 +315,15 @@ public class SodiumGameOptionPages {
                         .setEnabled(ComputeShaderInterface.isSupported(RenderDevice.INSTANCE))
                         .setBinding((opts, value) -> opts.advanced.useTranslucentFaceSorting = value, opts -> opts.advanced.useTranslucentFaceSorting)
                         .setFlags(OptionFlag.REQUIRES_RENDERER_RELOAD)
+                        .build()
+                )
+                .add(OptionImpl.createBuilder(boolean.class, sodiumOpts)
+                        .setName(new TranslatableText("sodium.options.use_adaptive_sync.name"))
+                        .setTooltip(new TranslatableText("sodium.options.use_adaptive_sync.tooltip"))
+                        .setControl(TickBoxControl::new)
+                        .setImpact(OptionImpact.VARIES)
+                        .setEnabled(GLFW.glfwExtensionSupported("GLX_EXT_swap_control_tear") || GLFW.glfwExtensionSupported("WGL_EXT_swap_control_tear"))
+                        .setBinding((opts, value) -> opts.performance.useAdaptiveSync = value, opts -> opts.performance.useAdaptiveSync)
                         .build()
                 )
                 .build());
