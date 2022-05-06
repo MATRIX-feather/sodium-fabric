@@ -41,6 +41,10 @@ public interface ControlValueFormatter {
         return (v) -> v + "x";
     }
 
+    static ControlValueFormatter translateQuantityOrDisabled(String key, String disableKey) {
+        return (v) -> v == 0 ? new TranslatableText(disableKey, v).getString() : v + new TranslatableText(key, v).getString();
+    }
+
     static ControlValueFormatter quantityOrDisabled(String name, String disableText) {
         return (v) -> v == 0 ? disableText : v + " " + name;
     }
