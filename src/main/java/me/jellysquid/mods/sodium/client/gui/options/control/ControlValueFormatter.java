@@ -23,6 +23,19 @@ public interface ControlValueFormatter {
         };
     }
 
+    static ControlValueFormatter threadCount()
+    {
+        return (v) ->
+        {
+            if (v == 0) {
+                return Text.translatable("sodium.options.chunk_update_threads.default").getString();
+            }
+            else {
+                return Text.translatable("sodium.options.chunk_update_threads.value", v).getString();
+            }
+        };
+    }
+
     static ControlValueFormatter biomeBlend() {
         return (v) -> (v == 0) ? Text.translatable("gui.none").getString() : Text.translatable("sodium.options.biome_blend.value", v).getString();
     }
