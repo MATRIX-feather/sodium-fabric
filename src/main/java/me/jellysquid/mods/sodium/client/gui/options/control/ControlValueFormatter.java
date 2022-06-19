@@ -58,6 +58,10 @@ public interface ControlValueFormatter {
         return (v) -> v == 0 ? disableText : v + " " + name;
     }
 
+    static ControlValueFormatter quantityOrDisabledTranslatable(String name, String disableText) {
+        return (v) -> v == 0 ? Text.translatable(disableText, v).getString() : Text.translatable(name, v).getString();
+    }
+
     static ControlValueFormatter number() {
         return String::valueOf;
     }
