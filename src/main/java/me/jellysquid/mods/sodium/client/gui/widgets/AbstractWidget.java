@@ -1,6 +1,7 @@
 package me.jellysquid.mods.sodium.client.gui.widgets;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import me.jellysquid.mods.sodium.client.SodiumClientMod;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.Drawable;
@@ -18,6 +19,8 @@ import java.util.function.Consumer;
 
 public abstract class AbstractWidget implements Drawable, Element, Selectable {
     protected final TextRenderer font;
+
+    protected int AccentColor = SodiumClientMod.AccentColor;
 
     protected AbstractWidget() {
         this.font = MinecraftClient.getInstance().textRenderer;

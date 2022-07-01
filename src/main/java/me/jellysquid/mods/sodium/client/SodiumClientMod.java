@@ -29,6 +29,9 @@ public class SodiumClientMod implements ClientModInitializer {
         CONFIG = loadConfig();
     }
 
+    //0xFF94E4D3
+    public static int AccentColor = 0xFF8AB7EA;
+
     public static SodiumGameOptions options() {
         if (CONFIG == null) {
             throw new IllegalStateException("Config not yet available");

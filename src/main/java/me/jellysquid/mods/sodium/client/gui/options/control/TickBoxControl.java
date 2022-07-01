@@ -1,5 +1,6 @@
 package me.jellysquid.mods.sodium.client.gui.options.control;
 
+import me.jellysquid.mods.sodium.client.SodiumClientMod;
 import me.jellysquid.mods.sodium.client.gui.options.Option;
 import me.jellysquid.mods.sodium.client.util.Dim2i;
 import net.minecraft.client.util.math.Rect2i;
@@ -51,7 +52,7 @@ public class TickBoxControl implements Control<Boolean> {
             final int color;
 
             if (enabled) {
-                color = ticked ? 0xFF94E4D3 : 0xFFFFFFFF;
+                color = ticked ? SodiumClientMod.AccentColor : 0xFFFFFFFF;
             } else {
                 color = 0xFFAAAAAA;
             }
