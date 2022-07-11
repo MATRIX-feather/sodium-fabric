@@ -408,4 +408,8 @@ public class SodiumWorldRenderer {
     public ChunkTracker getChunkTracker() {
         return this.chunkTracker;
     }
+
+    public RenderSectionManager getRenderSectionManager() {
+        return this.renderSectionManager;
+    }
 }
