@@ -337,9 +337,8 @@ public class FluidRenderer {
 
                 if (isWater) {
                     BlockPos adjPos = this.scratchPos.set(adjX, adjY, adjZ);
-                    var adjBlock = world.getBlockState(adjPos).getBlock();
 
-                    if (adjBlock instanceof TransparentBlock || adjBlock instanceof LeavesBlock){
+                    if (world.getBlockState(adjPos).isOpaqueFullCube(world, adjPos)){
                         // ice, glass, stained glass, tinted glass
                         sprite = this.waterOverlaySprite;
 
