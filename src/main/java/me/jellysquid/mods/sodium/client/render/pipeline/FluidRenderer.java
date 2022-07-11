@@ -20,7 +20,9 @@ import me.jellysquid.mods.sodium.common.util.DirectionUtil;
 import net.fabricmc.fabric.api.client.render.fluid.v1.FluidRenderHandler;
 import net.fabricmc.fabric.impl.client.rendering.fluid.FluidRenderHandlerRegistryImpl;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.LeavesBlock;
 import net.minecraft.block.SideShapeType;
+import net.minecraft.block.TransparentBlock;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.model.ModelLoader;
 import net.minecraft.client.texture.Sprite;
@@ -335,9 +337,9 @@ public class FluidRenderer {
 
                 if (isWater) {
                     BlockPos adjPos = this.scratchPos.set(adjX, adjY, adjZ);
-                    BlockState adjBlock = world.getBlockState(adjPos);
+                    var adjBlock = world.getBlockState(adjPos).getBlock();
 
-                    if (!adjBlock.isOpaque() && !adjBlock.isAir()) {
+                    if (adjBlock instanceof TransparentBlock || adjBlock instanceof LeavesBlock){
                         // ice, glass, stained glass, tinted glass
                         sprite = this.waterOverlaySprite;
 
