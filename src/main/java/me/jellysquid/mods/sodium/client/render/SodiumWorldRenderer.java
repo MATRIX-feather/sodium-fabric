@@ -405,10 +405,6 @@ public class SodiumWorldRenderer {
         return this.renderSectionManager.getDebugStrings();
     }
 
-    public RenderSectionManager getRenderSectionManager() {
-        return this.renderSectionManager;
-    }
-
     public ChunkTracker getChunkTracker() {
         return this.chunkTracker;
     }
