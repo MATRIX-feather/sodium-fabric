@@ -343,7 +343,7 @@ public class FluidRenderer {
                     BlockPos adjPos = this.scratchPos.set(adjX, adjY, adjZ);
                     BlockState adjBlock = world.getBlockState(adjPos);
 
-                    if (FluidRenderHandlerRegistry.INSTANCE.isBlockTransparent(adjBlock.getBlock())) {
+                    if (adjBlock.isOpaqueFullCube(world, adjPos)) {
                         sprite = sprites[2];
                         isOverlay = true;
                     }
