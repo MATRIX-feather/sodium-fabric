@@ -127,8 +127,17 @@ public class ChunkBuilder {
         this.buildQueue.clear();
 
         this.world = null;
-        
+
         this.doneStealingTasks();
+    }
+
+    /**
+     * Cleans up resources allocated on the currently calling thread for the {@link ChunkBuilder#stealTask()} method.
+     * This method should be called on a thread that has stolen tasks when it is done stealing to prevent resource
+     * leaks.
+     */
+    public void doneStealingTasks() {
+        this.localContexts.remove();
     }
 
     public CompletableFuture<ChunkBuildResult> schedule(ChunkRenderBuildTask task) {
@@ -210,15 +219,6 @@ public class ChunkBuilder {
 
     public Iterator<ChunkBuildResult> createDeferredBuildResultDrain() {
         return new QueueDrainingIterator<>(this.deferredResultQueue);
-    }
-    
-    /**
-     * Cleans up resources allocated on the currently calling thread for the {@link ChunkBuilder#stealTask()} method.
-     * This method should be called on a thread that has stolen tasks when it is done stealing to prevent resource
-     * leaks.
-     */
-    public void doneStealingTasks() {
-        this.localContexts.remove();
     }
 
     /**

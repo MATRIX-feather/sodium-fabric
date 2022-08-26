@@ -3,6 +3,7 @@ package me.jellysquid.mods.sodium.mixin.features.chunk_rendering;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import me.jellysquid.mods.sodium.client.gl.device.RenderDevice;
 import me.jellysquid.mods.sodium.client.render.SodiumWorldRenderer;
+import me.jellysquid.mods.sodium.client.util.FlawlessFrames;
 import me.jellysquid.mods.sodium.client.render.chunk.ChunkStatus;
 import me.jellysquid.mods.sodium.client.util.FlawlessFrames;
 import me.jellysquid.mods.sodium.client.util.frustum.FrustumAdapter;
@@ -35,7 +36,7 @@ public abstract class MixinWorldRenderer implements WorldRendererExtended {
     private Long2ObjectMap<SortedSet<BlockBreakingInfo>> blockBreakingProgressions;
 
     @Shadow
-    private boolean field_34810;
+    private boolean shouldUpdate;
 
     private SodiumWorldRenderer renderer;
 
@@ -129,7 +130,7 @@ public abstract class MixinWorldRenderer implements WorldRendererExtended {
                 }
 
                 // We set this because third-party mods may use it (to loop themselves), even if Vanilla does not.
-                this.field_34810 = false;
+                this.shouldUpdate = false;
             }
         } finally {
             RenderDevice.exitManagedCode();
